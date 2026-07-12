@@ -1,0 +1,947 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Validator Konsistensi Istilah — Sistem Integrasi Kelola Jurnal</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;600;700&family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/mammoth/1.6.0/mammoth.browser.min.js"></script>
+<style>
+  :root{
+    --bg:#0a0e15;
+    --panel:#121924;
+    --panel-2:#1a2230;
+    --ink:#eef2f7;
+    --ink-soft:#8a97ab;
+    --rule:rgba(255,255,255,.10);
+    --rule-soft:rgba(255,255,255,.06);
+    --teal:#2dd4bf;
+    --teal-soft:rgba(45,212,191,.12);
+    --red:#ff6b57;
+    --red-soft:rgba(255,107,87,.14);
+    --green:#34d399;
+    --green-soft:rgba(52,211,153,.14);
+    --blue:#5b9bff;
+    --blue-soft:rgba(91,155,255,.14);
+  }
+  *{box-sizing:border-box;}
+  body{
+    margin:0;
+    background:
+      linear-gradient(var(--rule-soft) 1px, transparent 1px),
+      linear-gradient(90deg, var(--rule-soft) 1px, transparent 1px),
+      var(--bg);
+    background-size:40px 40px, 40px 40px, auto;
+    color:var(--ink);
+    font-family:'IBM Plex Sans',sans-serif;
+    -webkit-font-smoothing:antialiased;
+  }
+  .wrap{max-width:1180px;margin:0 auto;padding:40px 24px 90px;}
+
+  header.top{
+    margin-bottom:24px;
+  }
+  .eyebrow{
+    font-family:'IBM Plex Mono',monospace;
+    font-size:11px;letter-spacing:.14em;text-transform:uppercase;
+    color:var(--teal);margin:0 0 10px;
+  }
+  h1{
+    font-family:'Space Grotesk',sans-serif;
+    font-weight:700;
+    font-size:36px;
+    margin:0 0 18px;
+    letter-spacing:-0.01em;
+    color:var(--ink);
+  }
+  .status-pill{
+    display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:10px;
+    background:var(--panel);border:1px solid var(--rule);border-radius:18px;
+    padding:16px 20px;margin-bottom:14px;
+  }
+  .status-pill-left{font-size:15px;color:var(--ink);}
+  .status-pill-right{
+    font-family:'IBM Plex Mono',monospace;font-size:11px;letter-spacing:.1em;
+    color:var(--ink-soft);display:flex;align-items:center;gap:8px;text-transform:uppercase;
+  }
+  .status-dot{width:8px;height:8px;border-radius:50%;background:var(--teal);box-shadow:0 0 8px var(--teal);}
+  .top-note{
+    font-family:'IBM Plex Mono',monospace;
+    font-size:12px;color:var(--ink-soft);
+    line-height:1.6;margin:0;max-width:640px;
+  }
+
+  .grid{display:grid;grid-template-columns:340px 1fr;gap:24px;align-items:start;}
+  @media (max-width:880px){.grid{grid-template-columns:1fr;}}
+
+  .panel{
+    background:var(--panel);
+    border:1px solid var(--rule);
+    border-radius:18px;
+    overflow:hidden;
+  }
+  .panel h2{
+    font-family:'Space Grotesk',sans-serif;font-size:16px;font-weight:600;
+    margin:0;padding:16px 18px;border-bottom:1px solid var(--rule);
+    display:flex;align-items:center;justify-content:space-between;
+    color:var(--ink);
+  }
+  .panel h2 span.count{
+    font-family:'IBM Plex Mono',monospace;font-size:11px;font-weight:400;
+    color:var(--ink-soft);
+  }
+  .panel-body{padding:18px;}
+
+  .main-panel{position:relative;}
+  .main-panel::before, .main-panel::after{
+    content:'';position:absolute;top:-1px;width:22px;height:22px;
+    border-top:2px solid var(--teal);pointer-events:none;
+  }
+  .main-panel::before{left:-1px;border-left:2px solid var(--teal);border-top-left-radius:18px;}
+  .main-panel::after{right:-1px;border-right:2px solid var(--teal);border-top-right-radius:18px;}
+
+  .term-row{
+    border:1px dashed var(--rule);border-radius:12px;
+    padding:12px;margin-bottom:10px;position:relative;background:var(--panel-2);
+  }
+  .term-row label{
+    font-family:'IBM Plex Mono',monospace;font-size:10px;letter-spacing:.08em;
+    text-transform:uppercase;color:var(--ink-soft);display:block;margin-bottom:4px;
+  }
+  .term-row input{
+    width:100%;border:none;border-bottom:1px solid var(--rule);
+    font-family:'IBM Plex Sans',sans-serif;font-size:14px;padding:5px 2px;
+    margin-bottom:10px;background:transparent;color:var(--ink);
+  }
+  .term-row input:focus{outline:none;border-bottom:1px solid var(--teal);}
+  .term-row .remove{
+    position:absolute;top:10px;right:10px;
+    background:none;border:none;color:var(--red);cursor:pointer;
+    font-family:'IBM Plex Mono',monospace;font-size:11px;
+  }
+  .add-term{
+    width:100%;padding:11px;background:var(--teal-soft);color:var(--teal);border:1px solid var(--teal);
+    border-radius:12px;
+    font-family:'IBM Plex Mono',monospace;font-size:12px;letter-spacing:.05em;
+    cursor:pointer;text-transform:uppercase;
+  }
+  .add-term:hover{background:var(--teal);color:#08141a;}
+
+  .opt-row{display:flex;align-items:center;gap:8px;margin-top:14px;font-size:12px;color:var(--ink-soft);font-family:'IBM Plex Mono',monospace;}
+
+  textarea{
+    width:100%;min-height:220px;
+    border:1px solid var(--rule);border-radius:14px;
+    font-family:'IBM Plex Mono',monospace;font-size:13.5px;line-height:1.6;
+    padding:16px;resize:vertical;background:var(--panel-2);color:var(--ink);
+  }
+  textarea::placeholder{color:#4d5a6c;}
+  textarea:focus{outline:none;border-color:var(--teal);}
+
+  .actions{display:flex;gap:10px;margin:14px 0 6px;flex-wrap:wrap;}
+  .btn{
+    font-family:'IBM Plex Mono',monospace;font-size:12px;letter-spacing:.04em;
+    text-transform:uppercase;padding:12px 20px;border:1px solid var(--teal);
+    background:var(--teal);color:#08141a;cursor:pointer;border-radius:12px;font-weight:600;
+  }
+  .btn:hover{background:#5fe9db;border-color:#5fe9db;}
+  .btn.ghost{background:transparent;color:var(--ink);border-color:var(--rule);}
+  .btn.ghost:hover{background:var(--panel-2);border-color:var(--ink-soft);}
+
+  .result-section{margin-top:28px;}
+  .result-head{
+    display:flex;align-items:baseline;gap:10px;margin-bottom:12px;
+    border-bottom:1px solid var(--rule);padding-bottom:8px;
+  }
+  .result-head h3{font-family:'Space Grotesk',sans-serif;font-size:18px;margin:0;font-weight:600;color:var(--ink);}
+  .result-head .tally{font-family:'IBM Plex Mono',monospace;font-size:12px;color:var(--ink-soft);}
+
+  .manuscript{
+    border:1px solid var(--rule);border-radius:14px;padding:20px;background:var(--panel-2);
+    font-family:'IBM Plex Mono',monospace;font-size:13.5px;line-height:2;
+    white-space:pre-wrap;word-break:break-word;color:var(--ink);
+  }
+  mark.flag{
+    background:none;color:var(--red);
+    border-bottom:2px solid var(--red);
+    text-decoration:none;position:relative;font-weight:500;
+    cursor:help;
+  }
+
+  table.report{width:100%;border-collapse:collapse;font-size:13px;}
+  table.report th{
+    text-align:left;font-family:'IBM Plex Mono',monospace;font-size:10.5px;
+    text-transform:uppercase;letter-spacing:.06em;color:var(--ink-soft);
+    border-bottom:1px solid var(--rule);padding:9px 10px;
+  }
+  table.report td{padding:10px;border-bottom:1px solid var(--rule-soft);vertical-align:top;color:var(--ink);}
+  table.report tr:hover td{background:var(--panel-2);}
+  .pill{
+    display:inline-block;font-family:'IBM Plex Mono',monospace;font-size:11px;
+    padding:2px 8px;border-radius:20px;
+  }
+  .pill.red{background:var(--red-soft);color:var(--red);}
+  .pill.green{background:var(--green-soft);color:var(--green);}
+  .variant-tag{
+    font-family:'IBM Plex Mono',monospace;font-size:12px;
+    background:var(--red-soft);color:var(--red);padding:2px 8px;margin:0 4px 4px 0;display:inline-block;border-radius:8px;
+  }
+  .canon-tag{
+    font-family:'IBM Plex Mono',monospace;font-size:12px;
+    background:var(--green-soft);color:var(--green);padding:2px 8px;border-radius:8px;
+  }
+  .empty{
+    font-family:'IBM Plex Mono',monospace;font-size:12.5px;color:var(--ink-soft);
+    padding:18px;border:1px dashed var(--rule);border-radius:12px;background:var(--panel-2);
+  }
+  .subtle{color:var(--ink-soft);font-size:12.5px;line-height:1.6;margin:6px 0 0;}
+  .tabs{display:flex;gap:8px;margin-bottom:16px;flex-wrap:wrap;}
+  .tab-btn{
+    font-family:'IBM Plex Mono',monospace;font-size:11.5px;letter-spacing:.04em;
+    text-transform:uppercase;padding:10px 16px;border:1px solid var(--rule);border-radius:12px;
+    background:var(--panel);color:var(--ink-soft);cursor:pointer;
+  }
+  .tab-btn.active{background:var(--teal-soft);color:var(--teal);border-color:var(--teal);}
+
+  .badge{
+    display:inline-block;vertical-align:middle;margin-left:10px;
+    font-family:'IBM Plex Mono',monospace;font-size:10px;letter-spacing:.08em;text-transform:uppercase;
+    padding:3px 9px;background:var(--green-soft);color:var(--green);border:1px solid var(--green);border-radius:20px;
+  }
+
+  .report-bar{
+    display:flex;gap:8px;flex-wrap:wrap;margin:18px 0 26px;
+    padding:14px;background:var(--panel-2);border:1px solid var(--rule);border-radius:14px;
+  }
+  .btn.small{padding:9px 14px;font-size:11px;}
+
+  .cat-list{list-style:none;margin:0;padding:0;border:1px solid var(--rule);border-radius:14px;background:var(--panel-2);overflow:hidden;}
+  .cat-list li{
+    padding:11px 16px;border-bottom:1px solid var(--rule-soft);font-size:13.5px;
+    display:flex;align-items:baseline;gap:8px;color:var(--ink);
+  }
+  .cat-list li:last-child{border-bottom:none;}
+  .cat-dot{
+    width:8px;height:8px;border-radius:50%;flex:none;
+  }
+  .cat-dot.red{background:var(--red);}
+  .cat-dot.blue{background:var(--blue);}
+  .cat-list .meta{
+    font-family:'IBM Plex Mono',monospace;font-size:11px;color:var(--ink-soft);margin-left:auto;
+  }
+  .result-head h3.red-title{color:var(--red);}
+  .result-head h3.blue-title{color:var(--blue);}
+
+  input[type="file"]{color:var(--ink-soft);font-family:'IBM Plex Sans',sans-serif;font-size:13px;}
+  input[type="checkbox"]{accent-color:var(--teal);}
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <header class="top">
+    <p class="eyebrow">Sistem Integrasi Kelola Jurnal</p>
+    <h1>Validator Konsistensi Istilah</h1>
+    <div class="status-pill">
+      <span class="status-pill-left">📤 Unggah File &amp; Ekspor Laporan (Word)</span>
+      <span class="status-pill-right"><span class="status-dot"></span>Engine Ready</span>
+    </div>
+    <p class="top-note">Definisikan istilah baku sekali di awal → tempel naskah, kode, atau unggah .docx → sistem menandai setiap penyimpangan dan mengelompokkannya jadi 🔴 wajib diperbaiki atau 🔵 saran.</p>
+  </header>
+
+  <div class="grid">
+
+    <!-- GLOSSARY PANEL -->
+    <div class="panel">
+      <h2>Aturan Istilah <span class="count" id="ruleCount">0 aturan</span></h2>
+      <div class="panel-body">
+        <p class="subtle" style="margin-top:0">Isi istilah baku, lalu daftar varian yang harus dianggap salah. Pisahkan varian dengan koma.</p>
+        <div id="termRows"></div>
+        <button class="add-term" id="addTermBtn">+ Tambah aturan istilah</button>
+        <div class="opt-row">
+          <input type="checkbox" id="caseSensitive"> <label for="caseSensitive" style="text-transform:none;letter-spacing:0">Peka huruf besar/kecil (case-sensitive)</label>
+        </div>
+      </div>
+    </div>
+
+    <!-- MAIN WORKSPACE -->
+    <div>
+      <div class="tabs">
+        <button class="tab-btn active" data-tab="glossary">Cek Istilah (Naskah)</button>
+        <button class="tab-btn" data-tab="ident">Cek Penamaan (Kode, Otomatis)</button>
+        <button class="tab-btn" data-tab="extract">Ekstrak Istilah dari File</button>
+      </div>
+
+      <div class="panel main-panel">
+        <div class="panel-body">
+
+          <div id="tab-glossary">
+            <p class="subtle" style="margin-top:0">Tempel naskah, dokumentasi, atau kode. Sistem akan menandai kata yang menyimpang dari istilah baku yang kamu tetapkan di panel kiri.</p>
+            <textarea id="glossaryInput" placeholder="Tempel teks di sini... misal: &#10;Sistem akan menampilkan data user ke customer. Setiap klien dapat melihat riwayat transaksinya."></textarea>
+            <div class="actions">
+              <button class="btn" id="checkGlossaryBtn">Periksa konsistensi</button>
+              <button class="btn ghost" id="fixGlossaryBtn">Ganti semua varian → istilah baku</button>
+            </div>
+          </div>
+
+          <div id="tab-ident" style="display:none">
+            <p class="subtle" style="margin-top:0">Tempel kode. Sistem mengekstrak semua identifier (nama variabel/fungsi), lalu mengelompokkan yang secara makna sama tapi ditulis beda gaya — tanpa perlu kamu daftarkan manual.</p>
+            <textarea id="identInput" placeholder="Tempel kode di sini... misal:&#10;const userId = getUserId();&#10;let user_id = 5;&#10;function fetchUserID(){}"></textarea>
+            <div class="actions">
+              <button class="btn" id="checkIdentBtn">Deteksi inkonsistensi penamaan</button>
+            </div>
+          </div>
+
+          <div id="tab-extract" style="display:none">
+            <p class="subtle" style="margin-top:0">Unggah file <strong>.docx</strong>, atau tempel teks langsung di bawah. Sistem menghitung istilah/frasa yang paling sering dipakai dan mengelompokkan kemungkinan variasi penulisan — kamu tinggal klik untuk menjadikannya aturan glosarium. Ini murni berbasis frekuensi &amp; kemiripan tulisan, bukan pemahaman makna, jadi tetap perlu penilaianmu untuk sinonim yang beda kata (mis. "pengguna" vs "klien").</p>
+
+            <div style="border:1px dashed var(--rule);padding:16px;margin-bottom:12px;background:var(--paper);">
+              <label style="font-family:'IBM Plex Mono',monospace;font-size:11px;text-transform:uppercase;letter-spacing:.08em;color:var(--ink-soft);display:block;margin-bottom:8px;">Unggah file .docx</label>
+              <input type="file" id="docxInput" accept=".docx">
+              <span id="docxStatus" class="subtle" style="display:block;margin-top:8px;"></span>
+            </div>
+
+            <label style="font-family:'IBM Plex Mono',monospace;font-size:11px;text-transform:uppercase;letter-spacing:.08em;color:var(--ink-soft);display:block;margin-bottom:6px;">Atau tempel teks di sini</label>
+            <textarea id="extractInput" placeholder="Tempel naskah di sini, atau unggah file .docx di atas — hasil ekstraksi file akan otomatis muncul di kotak ini dan bisa kamu edit dulu sebelum dianalisis."></textarea>
+            <div class="actions">
+              <button class="btn" id="extractBtn">Analisis frekuensi istilah</button>
+            </div>
+            <div class="actions" style="margin-top:0;">
+              <button class="btn ghost" id="semanticBtn" disabled>🧠 Kelompokkan Sinonim dengan AI Lokal</button>
+              <span class="subtle" id="semanticStatus" style="margin:0;align-self:center;"></span>
+            </div>
+            <p class="subtle">AI ini berjalan sepenuhnya di perangkatmu (model diunduh sekali, ±100MB, lalu tersimpan di cache browser) — tanpa server, tanpa API key, tanpa biaya. Bisa menangkap sinonim beda kata (mis. "pengguna" ≈ "klien"), bukan cuma variasi ejaan. Jalankan "Analisis frekuensi istilah" dulu supaya tombol ini aktif.</p>
+          </div>
+
+        </div>
+      </div>
+
+      <div id="results"></div>
+    </div>
+  </div>
+</div>
+
+<script>
+// ---------- Glossary state ----------
+let terms = [
+  {canonical:"pengguna", variants:"user, klien, customer"},
+  {canonical:"kata sandi", variants:"password, kata kunci"}
+];
+
+const termRowsEl = document.getElementById('termRows');
+const ruleCountEl = document.getElementById('ruleCount');
+
+function renderTerms(){
+  termRowsEl.innerHTML = '';
+  terms.forEach((t, i) => {
+    const row = document.createElement('div');
+    row.className = 'term-row';
+    row.innerHTML = `
+      <button class="remove" data-i="${i}">hapus ✕</button>
+      <label>Istilah baku</label>
+      <input type="text" data-i="${i}" data-field="canonical" value="${escapeAttr(t.canonical)}" placeholder="mis. pengguna">
+      <label>Varian yang harus dihindari (pisah koma)</label>
+      <input type="text" data-i="${i}" data-field="variants" value="${escapeAttr(t.variants)}" placeholder="mis. user, klien, customer">
+    `;
+    termRowsEl.appendChild(row);
+  });
+  ruleCountEl.textContent = terms.length + (terms.length===1 ? ' aturan' : ' aturan');
+}
+function escapeAttr(s){ return (s||'').replace(/"/g,'&quot;'); }
+
+termRowsEl.addEventListener('input', e => {
+  const i = e.target.dataset.i, field = e.target.dataset.field;
+  if(i===undefined) return;
+  terms[i][field] = e.target.value;
+});
+termRowsEl.addEventListener('click', e => {
+  if(e.target.classList.contains('remove')){
+    terms.splice(+e.target.dataset.i, 1);
+    renderTerms();
+  }
+});
+document.getElementById('addTermBtn').addEventListener('click', () => {
+  terms.push({canonical:'', variants:''});
+  renderTerms();
+});
+renderTerms();
+
+// ---------- Tabs ----------
+const ALL_TABS = ['glossary','ident','extract'];
+document.querySelectorAll('.tab-btn').forEach(btn=>{
+  btn.addEventListener('click', ()=>{
+    document.querySelectorAll('.tab-btn').forEach(b=>b.classList.remove('active'));
+    btn.classList.add('active');
+    ALL_TABS.forEach(key=>{
+      document.getElementById('tab-'+key).style.display = (btn.dataset.tab===key) ? 'block':'none';
+    });
+    document.getElementById('results').innerHTML = '';
+  });
+});
+
+// ---------- Helper: escape for HTML display ----------
+function escapeHtml(s){
+  return s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+}
+
+// ---------- Report engine (kategori merah/biru, copy, ekspor Word) ----------
+let currentReport = null;
+
+function renderReportBar(){
+  return `
+    <div class="report-bar">
+      <button class="btn ghost small" id="copyFullBtn">📋 Copy Full Report</button>
+      <button class="btn ghost small" id="copyFixBtn">✅ Copy Semua Koreksi</button>
+      <button class="btn small" id="exportDocBtn">⬇️ Ekspor Laporan (Word)</button>
+      <span class="subtle" id="reportBarStatus" style="margin:0;align-self:center;"></span>
+    </div>
+  `;
+}
+
+function renderCategorySection(report){
+  const redRows = report.red.map(it=>`<li><span class="cat-dot red"></span>${escapeHtml(it.text)}${it.meta?`<span class="meta">${escapeHtml(it.meta)}</span>`:''}</li>`).join('');
+  const blueRows = report.blue.map(it=>`<li><span class="cat-dot blue"></span>${escapeHtml(it.text)}${it.meta?`<span class="meta">${escapeHtml(it.meta)}</span>`:''}</li>`).join('');
+  return `
+    <div class="result-section">
+      <div class="result-head"><h3 class="red-title">🔴 Perlu Diperbaiki</h3><span class="tally">${report.red.length} item</span></div>
+      ${report.red.length ? `<ul class="cat-list">${redRows}</ul>` : '<div class="empty">Tidak ada yang wajib diperbaiki ✓</div>'}
+    </div>
+    <div class="result-section">
+      <div class="result-head"><h3 class="blue-title">🔵 Saran</h3><span class="tally">${report.blue.length} item</span></div>
+      ${report.blue.length ? `<ul class="cat-list">${blueRows}</ul>` : '<div class="empty">Tidak ada saran tambahan.</div>'}
+    </div>
+  `;
+}
+
+function buildReportText(report, onlyRed){
+  const lines = [];
+  lines.push('LAPORAN VALIDASI KONSISTENSI ISTILAH');
+  lines.push('Sistem Integrasi Kelola Jurnal');
+  lines.push('Modul: ' + report.toolLabel);
+  lines.push('Tanggal: ' + new Date().toLocaleString('id-ID'));
+  lines.push('');
+  lines.push('PERLU DIPERBAIKI (' + report.red.length + ')');
+  if(report.red.length===0) lines.push('- (tidak ada)');
+  report.red.forEach(it=> lines.push('- ' + it.text + (it.meta ? ' — ' + it.meta : '')));
+  if(!onlyRed){
+    lines.push('');
+    lines.push('SARAN (' + report.blue.length + ')');
+    if(report.blue.length===0) lines.push('- (tidak ada)');
+    report.blue.forEach(it=> lines.push('- ' + it.text + (it.meta ? ' — ' + it.meta : '')));
+  }
+  return lines.join('\n');
+}
+
+async function copyToClipboard(text, statusMsg){
+  const statusEl = document.getElementById('reportBarStatus');
+  try{
+    await navigator.clipboard.writeText(text);
+    if(statusEl) statusEl.textContent = statusMsg + ' ✓ tersalin';
+  }catch(err){
+    if(statusEl) statusEl.textContent = 'Gagal menyalin otomatis — salin manual dari hasil di atas.';
+  }
+  if(statusEl) setTimeout(()=>{ statusEl.textContent=''; }, 3500);
+}
+
+function exportReportAsDoc(){
+  if(!currentReport) return;
+  const redItems = currentReport.red.map(it=>`<li style="color:#c33b2e;margin-bottom:6px;">${escapeHtml(it.text)}${it.meta?` <i style="color:#666;font-size:10.5pt;">(${escapeHtml(it.meta)})</i>`:''}</li>`).join('');
+  const blueItems = currentReport.blue.map(it=>`<li style="color:#2b5b74;margin-bottom:6px;">${escapeHtml(it.text)}${it.meta?` <i style="color:#666;font-size:10.5pt;">(${escapeHtml(it.meta)})</i>`:''}</li>`).join('');
+  const bodyHtml = `
+    <p style="font-family:Calibri,sans-serif;font-size:9pt;letter-spacing:1px;text-transform:uppercase;color:#888;margin-bottom:2px;">Sistem Integrasi Kelola Jurnal</p>
+    <h1 style="font-family:Calibri,sans-serif;font-size:20pt;margin-top:0;">Laporan Validasi Konsistensi Istilah</h1>
+    <p style="font-family:Calibri,sans-serif;font-size:11pt;color:#555;">Modul: ${escapeHtml(currentReport.toolLabel)}<br>Tanggal: ${new Date().toLocaleString('id-ID')}</p>
+    <h2 style="font-family:Calibri,sans-serif;font-size:14pt;color:#c33b2e;">🔴 Perlu Diperbaiki (${currentReport.red.length})</h2>
+    <ul style="font-family:Calibri,sans-serif;font-size:11pt;">${redItems || '<li>Tidak ada</li>'}</ul>
+    <h2 style="font-family:Calibri,sans-serif;font-size:14pt;color:#2b5b74;">🔵 Saran (${currentReport.blue.length})</h2>
+    <ul style="font-family:Calibri,sans-serif;font-size:11pt;">${blueItems || '<li>Tidak ada</li>'}</ul>
+    <p style="font-family:Calibri,sans-serif;font-size:9pt;color:#999;margin-top:24px;">Dihasilkan otomatis oleh Validator Konsistensi Istilah. Berbasis heuristik, bukan pemeriksaan makna — selalu periksa ulang sebelum ditindaklanjuti.</p>
+  `;
+  const preHtml = "<html xmlns:o='urn:schemas-microsoft-com:office:office' xmlns:w='urn:schemas-microsoft-com:office:word' xmlns='http://www.w3.org/TR/REC-html40'><head><meta charset='utf-8'><title>Laporan</title></head><body>";
+  const postHtml = "</body></html>";
+  const blob = new Blob(['\ufeff', preHtml + bodyHtml + postHtml], {type:'application/msword'});
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = 'laporan-konsistensi-istilah.doc';
+  document.body.appendChild(a); a.click(); document.body.removeChild(a);
+  URL.revokeObjectURL(url);
+  const statusEl = document.getElementById('reportBarStatus');
+  if(statusEl){ statusEl.textContent = 'Laporan .doc diunduh ✓'; setTimeout(()=>{statusEl.textContent='';},3500); }
+}
+
+document.getElementById('results').addEventListener('click', (e)=>{
+  if(e.target.id === 'copyFullBtn' && currentReport) copyToClipboard(buildReportText(currentReport,false), 'Full report');
+  if(e.target.id === 'copyFixBtn' && currentReport) copyToClipboard(buildReportText(currentReport,true), 'Koreksi');
+  if(e.target.id === 'exportDocBtn') exportReportAsDoc();
+});
+
+// ---------- Glossary check ----------
+function buildRuleList(){
+  const caseSensitive = document.getElementById('caseSensitive').checked;
+  const rules = [];
+  terms.forEach(t=>{
+    const canonical = t.canonical.trim();
+    if(!canonical) return;
+    const variants = t.variants.split(',').map(v=>v.trim()).filter(Boolean);
+    variants.forEach(v=>{
+      rules.push({canonical, variant:v, caseSensitive});
+    });
+  });
+  return rules;
+}
+
+function checkGlossary(){
+  const text = document.getElementById('glossaryInput').value;
+  const rules = buildRuleList();
+  const resultsEl = document.getElementById('results');
+
+  if(!text.trim()){
+    resultsEl.innerHTML = `<div class="result-section"><div class="empty">Tempel naskah dulu di kotak teks.</div></div>`;
+    return;
+  }
+  if(rules.length === 0){
+    resultsEl.innerHTML = `<div class="result-section"><div class="empty">Belum ada aturan istilah yang valid. Isi minimal satu "istilah baku" + varian di panel kiri.</div></div>`;
+    return;
+  }
+
+  // Collect all matches with position, sorted, then build highlighted HTML without overlap issues
+  let matches = [];
+  rules.forEach(r=>{
+    const flags = r.caseSensitive ? 'g' : 'gi';
+    const escaped = r.variant.replace(/[.*+?^${}()|[\]\\]/g,'\\$&');
+    const re = new RegExp('\\b(' + escaped + ')\\b', flags);
+    let m;
+    while((m = re.exec(text)) !== null){
+      matches.push({start:m.index, end:m.index+m[0].length, text:m[0], canonical:r.canonical, variant:r.variant});
+      if(m.index === re.lastIndex) re.lastIndex++;
+    }
+  });
+  matches.sort((a,b)=>a.start-b.start);
+  // remove overlaps (keep first)
+  matches = matches.filter((m,i)=> i===0 || m.start >= matches[i-1].end);
+
+  // Build highlighted manuscript
+  let html = '';
+  let cursor = 0;
+  matches.forEach(m=>{
+    html += escapeHtml(text.slice(cursor, m.start));
+    html += `<mark class="flag" title="Gunakan istilah baku: ${escapeAttr(m.canonical)}">${escapeHtml(m.text)}</mark>`;
+    cursor = m.end;
+  });
+  html += escapeHtml(text.slice(cursor));
+
+  // Build report table grouped by variant
+  const grouped = {};
+  matches.forEach(m=>{
+    const key = m.canonical + '||' + m.variant;
+    grouped[key] = grouped[key] || {canonical:m.canonical, variant:m.variant, count:0};
+    grouped[key].count++;
+  });
+  const groupedArr = Object.values(grouped).sort((a,b)=>b.count-a.count);
+
+  let reportRows = groupedArr.map(g => `
+    <tr>
+      <td><span class="pill red">${g.count}×</span></td>
+      <td><span class="variant-tag">${escapeHtml(g.variant)}</span></td>
+      <td>→ <span class="canon-tag">${escapeHtml(g.canonical)}</span></td>
+    </tr>
+  `).join('');
+
+  currentReport = {
+    toolLabel: 'Cek Istilah (Naskah)',
+    red: groupedArr.map(g => ({ text: `Ganti "${g.variant}" → "${g.canonical}"`, meta: `${g.count} kemunculan` })),
+    blue: []
+  };
+
+  resultsEl.innerHTML = renderReportBar() + renderCategorySection(currentReport) + `
+    <div class="result-section">
+      <div class="result-head">
+        <h3>Naskah bertanda</h3>
+        <span class="tally">${matches.length} penyimpangan ditemukan</span>
+      </div>
+      <div class="manuscript">${matches.length ? html : escapeHtml(text)}</div>
+    </div>
+    <div class="result-section">
+      <div class="result-head">
+        <h3>Rekap per varian</h3>
+        <span class="tally">${groupedArr.length} jenis varian</span>
+      </div>
+      ${groupedArr.length ? `<table class="report"><thead><tr><th>Jumlah</th><th>Varian ditemukan</th><th>Seharusnya</th></tr></thead><tbody>${reportRows}</tbody></table>` : '<div class="empty">Tidak ada penyimpangan istilah. Naskah konsisten ✓</div>'}
+    </div>
+  `;
+}
+document.getElementById('checkGlossaryBtn').addEventListener('click', checkGlossary);
+
+document.getElementById('fixGlossaryBtn').addEventListener('click', ()=>{
+  const ta = document.getElementById('glossaryInput');
+  let text = ta.value;
+  const rules = buildRuleList();
+  rules.forEach(r=>{
+    const flags = r.caseSensitive ? 'g' : 'gi';
+    const escaped = r.variant.replace(/[.*+?^${}()|[\]\\]/g,'\\$&');
+    const re = new RegExp('\\b(' + escaped + ')\\b', flags);
+    text = text.replace(re, r.canonical);
+  });
+  ta.value = text;
+  checkGlossary();
+});
+
+// ---------- Identifier auto-detect ----------
+const STOPWORDS = new Set([
+  // JS/TS
+  'const','let','var','function','return','if','else','for','while','do','switch','case','break','continue',
+  'class','extends','new','this','typeof','instanceof','import','export','default','from','async','await',
+  'true','false','null','undefined','void','delete','in','of','try','catch','finally','throw','yield','static',
+  'get','set','super','constructor','interface','type','enum','namespace','implements','public','private','protected',
+  'readonly','abstract','as','is','never','unknown','any','string','number','boolean','object','symbol','bigint',
+  // Python
+  'def','elif','self','None','True','False','import','pass','lambda','global','nonlocal','with','as','raise',
+  'except','assert','del','not','and','or','is','class','yield',
+  // generic short/common
+  'i','j','k','x','y','z','id','a','b','c','n','e','err','val','tmp'
+]);
+
+function checkIdentifiers(){
+  const code = document.getElementById('identInput').value;
+  const resultsEl = document.getElementById('results');
+  if(!code.trim()){
+    resultsEl.innerHTML = `<div class="result-section"><div class="empty">Tempel kode dulu di kotak teks.</div></div>`;
+    return;
+  }
+
+  const tokenRe = /\b[A-Za-z_$][A-Za-z0-9_$]*\b/g;
+  const tokens = code.match(tokenRe) || [];
+
+  const groups = {}; // normalizedKey -> { variantText -> count }
+  tokens.forEach(tok=>{
+    if(STOPWORDS.has(tok)) return;
+    if(tok.length < 3) return;
+    const norm = tok.replace(/[_$]/g,'').toLowerCase();
+    if(norm.length < 3) return;
+    groups[norm] = groups[norm] || {};
+    groups[norm][tok] = (groups[norm][tok] || 0) + 1;
+  });
+
+  const inconsistent = Object.entries(groups)
+    .map(([norm, variants]) => ({norm, variants}))
+    .filter(g => Object.keys(g.variants).length > 1)
+    .sort((a,b)=> Object.keys(b.variants).length - Object.keys(a.variants).length);
+
+  let rows = inconsistent.map(g=>{
+    const entries = Object.entries(g.variants).sort((a,b)=>b[1]-a[1]);
+    const suggested = entries[0][0];
+    const tags = entries.map(([name,count])=>
+      `<span class="variant-tag">${escapeHtml(name)} <span style="opacity:.6">×${count}</span></span>`
+    ).join('');
+    return `
+      <tr>
+        <td>${tags}</td>
+        <td>→ <span class="canon-tag">${escapeHtml(suggested)}</span> <span style="color:var(--ink-soft);font-size:11px">(paling sering dipakai)</span></td>
+      </tr>
+    `;
+  }).join('');
+
+  currentReport = {
+    toolLabel: 'Cek Penamaan Variabel (Kode)',
+    red: [],
+    blue: inconsistent.map(g=>{
+      const entries = Object.entries(g.variants).sort((a,b)=>b[1]-a[1]);
+      const suggested = entries[0][0];
+      const names = entries.map(([name,count])=>`${name}(${count})`).join(', ');
+      return { text: `Konsep bercabang: ${names}`, meta: `saran: ${suggested}` };
+    })
+  };
+
+  resultsEl.innerHTML = renderReportBar() + renderCategorySection(currentReport) + `
+    <div class="result-section">
+      <div class="result-head">
+        <h3>Penamaan tidak konsisten</h3>
+        <span class="tally">${inconsistent.length} konsep dengan penamaan bercabang</span>
+      </div>
+      ${inconsistent.length ? `<table class="report"><thead><tr><th>Variasi penulisan ditemukan</th><th>Saran penyeragaman</th></tr></thead><tbody>${rows}</tbody></table>` : '<div class="empty">Tidak ditemukan variasi penamaan untuk konsep yang sama. Penamaan konsisten ✓</div>'}
+      <p class="subtle">Catatan: deteksi berbasis penyamaan huruf besar/kecil dan underscore (mis. <code>userId</code>, <code>user_id</code>, <code>userID</code> dianggap satu konsep). Kata kunci bahasa pemrograman umum diabaikan otomatis.</p>
+    </div>
+  `;
+}
+document.getElementById('checkIdentBtn').addEventListener('click', checkIdentifiers);
+
+// ---------- File upload (.docx) ----------
+const docxInput = document.getElementById('docxInput');
+const docxStatus = document.getElementById('docxStatus');
+docxInput.addEventListener('change', async (e)=>{
+  const file = e.target.files[0];
+  if(!file) return;
+  docxStatus.textContent = 'Membaca ' + file.name + ' ...';
+  try{
+    const arrayBuffer = await file.arrayBuffer();
+    const result = await mammoth.extractRawText({arrayBuffer});
+    document.getElementById('extractInput').value = result.value;
+    docxStatus.textContent = 'Berhasil mengekstrak teks dari ' + file.name + ' (' + result.value.length + ' karakter). Kamu bisa edit dulu sebelum dianalisis.';
+  }catch(err){
+    docxStatus.textContent = 'Gagal membaca file. Pastikan formatnya .docx yang valid. (' + err.message + ')';
+  }
+});
+
+// ---------- Term frequency + variant clustering ----------
+const ID_STOPWORDS = new Set([
+  'yang','dan','di','ke','dari','ini','itu','akan','untuk','pada','dengan','adalah','dalam','tidak','atau',
+  'juga','dapat','oleh','sebagai','karena','jika','maka','telah','sudah','saat','secara','terhadap','antara',
+  'hanya','masih','harus','bisa','ada','kita','kami','mereka','saya','anda','dia','ia','nya','kah','lah','pun',
+  'per','para','sang','si','se','ya','tersebut','tapi','namun','serta','agar','supaya','sehingga','meskipun',
+  'walaupun','apabila','yaitu','yakni','tanpa','setiap','semua','beberapa','sangat','lebih','kurang','satu',
+  'dua','tiga','the','and','of','to','in','on','is','are','was','were','be','been','a','an','it','that','this'
+]);
+
+function normalizeToken(w){
+  return w.toLowerCase();
+}
+// simple heuristic to catch surface variants: strip common suffixes/hyphens/spaces for comparison
+function lexicalKey(w){
+  let k = w.toLowerCase().replace(/[-_\s]/g,'');
+  k = k.replace(/(nya|an|kan)$/,''); // strip common ID suffix (rough heuristic)
+  k = k.replace(/s$/,''); // strip trailing plural s
+  return k;
+}
+
+function extractFrequency(text){
+  const wordRe = /\b[A-Za-zÀ-ÖØ-öø-ÿ][A-Za-zÀ-ÖØ-öø-ÿ'-]*\b/g;
+  const rawWords = text.match(wordRe) || [];
+  const words = rawWords.map(normalizeToken).filter(w => w.length >= 3 && !ID_STOPWORDS.has(w));
+
+  // unigram frequency
+  const uni = {};
+  words.forEach(w=> uni[w] = (uni[w]||0)+1);
+
+  // bigram frequency (candidate multi-word terms), using original filtered sequence positions
+  const bi = {};
+  for(let i=0;i<rawWords.length-1;i++){
+    const w1 = normalizeToken(rawWords[i]), w2 = normalizeToken(rawWords[i+1]);
+    if(ID_STOPWORDS.has(w1) || ID_STOPWORDS.has(w2)) continue;
+    if(w1.length<3 || w2.length<3) continue;
+    const phrase = w1 + ' ' + w2;
+    bi[phrase] = (bi[phrase]||0)+1;
+  }
+
+  const uniList = Object.entries(uni).filter(([,c])=>c>=2).map(([term,count])=>({term,count}));
+  const biList = Object.entries(bi).filter(([,c])=>c>=2).map(([term,count])=>({term,count}));
+
+  const combined = [...biList, ...uniList].sort((a,b)=>b.count-a.count).slice(0,40);
+
+  // lexical variant clustering across unigrams only
+  const clusters = {};
+  Object.keys(uni).forEach(term=>{
+    const key = lexicalKey(term);
+    if(key.length < 3) return;
+    clusters[key] = clusters[key] || {};
+    clusters[key][term] = uni[term];
+  });
+  const variantGroups = Object.values(clusters)
+    .filter(g => Object.keys(g).length > 1)
+    .map(g => Object.entries(g).sort((a,b)=>b[1]-a[1]))
+    .sort((a,b)=> b.length - a.length);
+
+  return {combined, variantGroups};
+}
+
+function addTermToGlossary(canonical, variantsArr){
+  terms.push({canonical, variants: variantsArr.join(', ')});
+  renderTerms();
+}
+
+// ---------- Extraction render (dipanggil ulang setelah AI selesai) ----------
+let extractState = null; // {combined, variantGroups}
+
+function renderExtraction(semanticGroups){
+  const resultsEl = document.getElementById('results');
+  const {combined, variantGroups} = extractState;
+
+  let freqRows = combined.map(({term,count})=>`
+    <tr>
+      <td><span class="pill green">${count}×</span></td>
+      <td>${escapeHtml(term)}</td>
+      <td><button class="btn ghost" style="padding:5px 10px;font-size:11px" data-add-canonical="${escapeAttr(term)}">+ Jadikan istilah baku</button></td>
+    </tr>
+  `).join('');
+
+  let varRows = variantGroups.map(entries=>{
+    const canonical = entries[0][0];
+    const variants = entries.slice(1).map(e=>e[0]);
+    const tags = entries.map(([name,count])=>`<span class="variant-tag">${escapeHtml(name)} <span style="opacity:.6">×${count}</span></span>`).join('');
+    return `
+      <tr>
+        <td>${tags}</td>
+        <td><button class="btn ghost" style="padding:5px 10px;font-size:11px" data-add-canonical="${escapeAttr(canonical)}" data-add-variants="${escapeAttr(variants.join(','))}">+ Tambah sebagai aturan</button></td>
+      </tr>
+    `;
+  }).join('');
+
+  let semanticRows = '';
+  let semanticSection = '';
+  if(semanticGroups){
+    semanticRows = semanticGroups.map(group=>{
+      const sorted = [...group].sort((a,b)=>b.count-a.count);
+      const canonical = sorted[0].term;
+      const variants = sorted.slice(1).map(g=>g.term);
+      const tags = sorted.map(g=>`<span class="variant-tag">${escapeHtml(g.term)} <span style="opacity:.6">×${g.count}</span></span>`).join('');
+      return `
+        <tr>
+          <td>${tags}</td>
+          <td><button class="btn ghost" style="padding:5px 10px;font-size:11px" data-add-canonical="${escapeAttr(canonical)}" data-add-variants="${escapeAttr(variants.join(','))}">+ Tambah sebagai aturan</button></td>
+        </tr>
+      `;
+    }).join('');
+    semanticSection = `
+      <div class="result-section">
+        <div class="result-head">
+          <h3>🧠 Kemungkinan sinonim (AI lokal)</h3>
+          <span class="tally">${semanticGroups.length} kelompok</span>
+        </div>
+        ${semanticGroups.length ? `<table class="report"><thead><tr><th>Istilah dengan makna berdekatan</th><th></th></tr></thead><tbody>${semanticRows}</tbody></table>` : '<div class="empty">Tidak ditemukan kelompok makna yang cukup dekat pada ambang batas saat ini.</div>'}
+        <p class="subtle">Dihitung dari kemiripan makna (embedding), bukan aturan pasti — tetap periksa ulang sebelum ditambahkan. Model: paraphrase-multilingual-MiniLM, berjalan di perangkatmu.</p>
+      </div>
+    `;
+  }
+
+  currentReport = {
+    toolLabel: 'Ekstrak Istilah dari File',
+    red: [],
+    blue: [
+      ...variantGroups.map(entries=>{
+        const canonical = entries[0][0];
+        const names = entries.map(([name,count])=>`${name}(${count})`).join(', ');
+        return { text: `Variasi penulisan: ${names}`, meta: `saran: ${canonical}` };
+      }),
+      ...(semanticGroups||[]).map(group=>{
+        const sorted = [...group].sort((a,b)=>b.count-a.count);
+        const names = sorted.map(g=>`${g.term}(${g.count})`).join(', ');
+        return { text: `Kemungkinan sinonim (AI): ${names}`, meta: `saran: ${sorted[0].term}` };
+      })
+    ]
+  };
+
+  resultsEl.innerHTML = renderReportBar() + renderCategorySection(currentReport) + `
+    <div class="result-section">
+      <div class="result-head">
+        <h3>Istilah paling sering muncul</h3>
+        <span class="tally">${combined.length} kandidat</span>
+      </div>
+      ${combined.length ? `<table class="report"><thead><tr><th>Frekuensi</th><th>Istilah / frasa</th><th></th></tr></thead><tbody>${freqRows}</tbody></table>` : '<div class="empty">Tidak ada istilah yang cukup sering muncul.</div>'}
+      <p class="subtle">Ini murni hitungan kemunculan kata &amp; frasa dua-kata (bagian ini info, bukan bagian laporan koreksi). Klik untuk menambah ke glosarium.</p>
+    </div>
+    <div class="result-section">
+      <div class="result-head">
+        <h3>Kemungkinan variasi penulisan</h3>
+        <span class="tally">${variantGroups.length} kelompok</span>
+      </div>
+      ${variantGroups.length ? `<table class="report"><thead><tr><th>Variasi ditemukan (kata dasar mirip)</th><th></th></tr></thead><tbody>${varRows}</tbody></table>` : '<div class="empty">Tidak ditemukan variasi penulisan yang mencolok.</div>'}
+      <p class="subtle">Deteksi berbasis kemiripan huruf (imbuhan/jamak/tanda hubung), bukan makna.</p>
+    </div>
+    ${semanticSection}
+  `;
+}
+
+function runExtraction(){
+  const text = document.getElementById('extractInput').value;
+  const resultsEl = document.getElementById('results');
+  if(!text.trim()){
+    resultsEl.innerHTML = `<div class="result-section"><div class="empty">Unggah file .docx atau tempel teks dulu.</div></div>`;
+    return;
+  }
+  extractState = extractFrequency(text);
+  document.getElementById('semanticBtn').disabled = false;
+  renderExtraction(null);
+}
+document.getElementById('extractBtn').addEventListener('click', runExtraction);
+
+// ---------- AI lokal (transformers.js) untuk deteksi sinonim beda kata ----------
+let embedderPromise = null;
+
+function getEmbedder(onProgress){
+  if(embedderPromise) return embedderPromise;
+  embedderPromise = (async ()=>{
+    const { pipeline, env } = await import('https://cdn.jsdelivr.net/npm/@xenova/transformers@2.17.2');
+    env.allowLocalModels = false;
+    return await pipeline('feature-extraction', 'Xenova/paraphrase-multilingual-MiniLM-L12-v2', {
+      quantized: true,
+      progress_callback: (p)=>{
+        if(p.status==='progress' && onProgress){
+          onProgress(`Mengunduh model: ${p.file} — ${Math.round(p.progress||0)}%`);
+        } else if(p.status==='ready' && onProgress){
+          onProgress('Model siap, menghitung makna...');
+        }
+      }
+    });
+  })();
+  return embedderPromise;
+}
+
+function cosineSim(a,b){
+  let dot=0;
+  for(let i=0;i<a.length;i++) dot += a[i]*b[i];
+  return dot; // vektor sudah dinormalisasi, jadi dot product = cosine similarity
+}
+
+function clusterBySimilarity(items, vectors, threshold){
+  const used = new Array(items.length).fill(false);
+  const clusters = [];
+  for(let i=0;i<items.length;i++){
+    if(used[i]) continue;
+    const cluster = [items[i]];
+    used[i] = true;
+    for(let j=i+1;j<items.length;j++){
+      if(used[j]) continue;
+      if(cosineSim(vectors[i], vectors[j]) >= threshold){
+        cluster.push(items[j]);
+        used[j] = true;
+      }
+    }
+    if(cluster.length > 1) clusters.push(cluster);
+  }
+  return clusters;
+}
+
+async function runSemanticClustering(){
+  const statusEl = document.getElementById('semanticStatus');
+  const btn = document.getElementById('semanticBtn');
+  if(!extractState){
+    statusEl.textContent = 'Jalankan "Analisis frekuensi istilah" dulu.';
+    return;
+  }
+  btn.disabled = true;
+  const originalLabel = btn.textContent;
+  btn.textContent = 'Memproses...';
+  try{
+    const candidates = extractState.combined.slice(0, 30);
+    const termList = candidates.map(c=>c.term);
+    statusEl.textContent = 'Menyiapkan model AI lokal...';
+    const embedder = await getEmbedder(msg => { statusEl.textContent = msg; });
+    statusEl.textContent = 'Menghitung kemiripan makna antar istilah...';
+    const output = await embedder(termList, {pooling:'mean', normalize:true});
+    const vectors = output.tolist();
+    const groups = clusterBySimilarity(candidates, vectors, 0.75);
+    renderExtraction(groups);
+    statusEl.textContent = `Selesai — ${groups.length} kelompok kemungkinan sinonim ditemukan ✓`;
+  }catch(err){
+    statusEl.textContent = 'Gagal memuat/menjalankan model AI. Pastikan koneksi internet aktif untuk unduhan pertama, lalu coba lagi. (' + err.message + ')';
+  }finally{
+    btn.disabled = false;
+    btn.textContent = originalLabel;
+  }
+}
+document.getElementById('semanticBtn').addEventListener('click', runSemanticClustering);
+
+document.getElementById('results').addEventListener('click', (e)=>{
+  const btn = e.target.closest('[data-add-canonical]');
+  if(!btn) return;
+  const canonical = btn.getAttribute('data-add-canonical');
+  const variantsAttr = btn.getAttribute('data-add-variants');
+  const variantsArr = variantsAttr ? variantsAttr.split(',') : [];
+  addTermToGlossary(canonical, variantsArr);
+  btn.textContent = '✓ Ditambahkan';
+  btn.disabled = true;
+});
+</script>
+</body>
+</html>
