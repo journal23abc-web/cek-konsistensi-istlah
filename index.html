@@ -5,83 +5,196 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Terminology &amp; Variable Consistency Checker</title>
 <meta name="description" content="Checks a manuscript for inconsistent terminology, casing, hyphenation, variable naming, acronym definitions, American/British spelling, and (optionally) AI-assisted synonym candidates — runs entirely in the browser.">
-<link rel="stylesheet" href="assets/css/styles.css">
+<link rel="stylesheet" href="assets/css/shared.css">
+<style>
+  /* Page-specific rules for index.html only — shared.css stays limited to
+     what is confirmed identical across pages, per its own header comment. */
+
+  .wrap{ max-width:1180px; margin:0 auto; position:relative; z-index:1; }
+
+  header.masthead{ padding:6px 0 30px; display:flex; align-items:flex-start; justify-content:space-between; gap:20px; flex-wrap:wrap; }
+  header.masthead h1{ font-family:var(--font-display); font-weight:800; font-size:clamp(28px,4.2vw,44px); letter-spacing:-0.02em; margin:0 0 10px; color:var(--text); }
+  header.masthead h1 em{ font-style:normal; color:var(--cyan); }
+  header.masthead .subtitle{ max-width:620px; color:var(--text-dim); font-size:14.5px; }
+  .theme-toggle{ font-family:var(--font-mono); font-size:11px; }
+
+  .grid{ display:grid; grid-template-columns:1.5fr 1fr; gap:20px; align-items:start; }
+  @media(max-width:880px){ .grid{ grid-template-columns:1fr; } }
+
+  .panel-title{ display:flex; align-items:center; justify-content:space-between; margin:0 0 16px; }
+  .panel-title h2{ font-family:var(--font-display); font-size:16px; font-weight:700; margin:0; color:var(--text); }
+  .panel-title .tag{ font-family:var(--font-mono); font-size:10.5px; color:var(--text-faint); letter-spacing:.06em; text-transform:uppercase; }
+
+  textarea, input[type=text]{
+    width:100%; background:var(--input-bg); border:1px solid var(--hairline); border-radius:8px;
+    color:var(--text); font-family:var(--font-mono); font-size:13px; padding:12px 14px; resize:vertical;
+  }
+  textarea::placeholder{ color:var(--text-faint); }
+  textarea#input-text{ min-height:320px; line-height:1.7; }
+  textarea.glossary{ min-height:100px; font-size:12.5px; }
+
+  .file-row{ display:flex; gap:10px; flex-wrap:wrap; margin-top:14px; align-items:center; }
+  label.upload{
+    font-family:var(--font-mono); font-size:11px; color:var(--text-dim); border:1px dashed var(--hairline);
+    border-radius:6px; padding:9px 14px; cursor:pointer; transition:all .15s ease;
+  }
+  label.upload:hover{ border-color:var(--cyan); color:var(--cyan); }
+  input[type=file]{ display:none; }
+
+  .btn-primary{
+    font-family:var(--font-sans); font-size:13px; font-weight:700; letter-spacing:.01em;
+    padding:10px 20px; border:none; border-radius:6px; cursor:pointer;
+    background:linear-gradient(135deg, var(--cyan), var(--violet)); color:#04101A;
+    box-shadow:0 0 0 1px rgba(79,227,232,.25), 0 4px 18px var(--glow-cyan);
+    transition:transform .12s ease, box-shadow .12s ease;
+  }
+  .btn-primary:hover{ box-shadow:0 0 0 1px var(--cyan), 0 6px 22px var(--glow-cyan); }
+  .btn-primary:active{ transform:translateY(1px); }
+  .btn-primary:disabled{ opacity:.4; cursor:not-allowed; box-shadow:none; }
+  .btn-ai{ background:linear-gradient(135deg, var(--violet), var(--cyan)); color:#04101A; }
+
+  .field{ margin-bottom:18px; }
+  .field-label{ display:flex; justify-content:space-between; font-size:12px; font-weight:600; margin-bottom:7px; font-family:var(--font-mono); letter-spacing:.02em; color:var(--text-dim); }
+  .field .hint{ font-size:11.5px; color:var(--text-faint); margin-top:6px; line-height:1.55; }
+  input[type=range]{ width:100%; accent-color:var(--cyan); }
+  .check-row{ display:flex; align-items:flex-start; gap:8px; font-size:12.5px; margin-bottom:8px; color:var(--text-dim); }
+  .check-row input{ accent-color:var(--cyan); width:15px; height:15px; margin-top:2px; flex-shrink:0; }
+  .run-row{ margin-top:8px; display:flex; gap:12px; align-items:center; flex-wrap:wrap; }
+  .status-line{ font-family:var(--font-mono); font-size:11px; color:var(--text-faint); }
+
+  .ai-block{ margin-top:22px; border:1px dashed var(--violet); border-radius:10px; padding:16px 18px; background:rgba(139,124,240,0.07); }
+  .ai-block h3{ font-family:var(--font-display); font-size:13.5px; margin:0 0 6px; color:var(--violet); }
+  .ai-block p{ font-size:12px; color:var(--text-dim); margin:0 0 12px; line-height:1.6; }
+  .ai-status{ font-family:var(--font-mono); font-size:11px; color:var(--violet); min-height:16px; }
+
+  /* ---------- results ---------- */
+  section.results{ margin-top:36px; }
+  .results-head{ display:flex; align-items:flex-end; justify-content:space-between; border-bottom:1px solid var(--hairline); padding-bottom:14px; margin-bottom:22px; flex-wrap:wrap; gap:12px; }
+  .results-head h2{ font-family:var(--font-display); font-size:22px; font-weight:800; margin:0; color:var(--text); }
+  .scorebox{ display:flex; gap:22px; }
+  .scorebox .num{ font-family:var(--font-display); font-size:26px; font-weight:800; color:var(--cyan); }
+  .scorebox .lbl{ font-family:var(--font-mono); font-size:10px; color:var(--text-faint); letter-spacing:.06em; text-transform:uppercase; }
+
+  .empty-state{ padding:50px 20px; text-align:center; color:var(--text-faint); font-family:var(--font-display); font-size:15px; border:1px dashed var(--hairline); border-radius:10px; }
+
+  .cat-block{ margin-bottom:28px; }
+  .cat-title{ display:flex; align-items:center; gap:10px; font-family:var(--font-mono); font-size:11.5px; letter-spacing:.06em; text-transform:uppercase; color:var(--text-dim); margin-bottom:12px; }
+  .cat-sym{ display:inline-flex; align-items:center; justify-content:center; width:24px; height:24px; font-family:var(--font-display); font-weight:800; font-size:11px; border:1px solid currentColor; border-radius:50%; }
+  .cat-count{ margin-left:auto; color:var(--text-faint); }
+  .cat-note{ font-size:11px; color:var(--text-faint); font-style:italic; margin:-6px 0 12px 34px; }
+
+  .note-card{ background:var(--panel); border:1px solid var(--hairline); border-left:3px solid var(--red); border-radius:0 8px 8px 0; padding:13px 16px; margin-bottom:9px; }
+  .note-card.c-red{ border-left-color:var(--red); }
+  .note-card.c-amber{ border-left-color:var(--amber); }
+  .note-card.c-violet{ border-left-color:var(--violet); }
+  .note-card.c-green{ border-left-color:var(--green); }
+  .note-card.c-cyan{ border-left-color:var(--cyan); border-left-style:dashed; }
+
+  .note-top{ display:flex; align-items:center; gap:9px; flex-wrap:wrap; margin-bottom:8px; }
+  .variant-chip{ font-family:var(--font-mono); font-size:12px; background:var(--input-bg); border:1px solid var(--hairline); border-radius:5px; padding:3px 9px; color:var(--text); }
+  .variant-chip .n{ color:var(--text-faint); margin-left:5px; }
+  .sim-chip{ font-family:var(--font-mono); font-size:10.5px; background:rgba(139,124,240,0.15); border:1px solid var(--violet); border-radius:5px; color:var(--violet); padding:2px 8px; margin-left:auto; }
+  .arrow{ color:var(--text-faint); font-size:12px; }
+  .contexts{ display:flex; flex-direction:column; gap:6px; }
+  .ctx-line{ font-size:12px; color:var(--text-dim); font-family:var(--font-mono); background:var(--input-bg); border-radius:5px; padding:6px 10px; border-left:2px solid var(--hairline); }
+  .ctx-line mark{ background:rgba(242,184,75,0.25); color:var(--amber); padding:0 2px; border-radius:2px; font-weight:600; }
+  .ctx-more{ font-size:11px; color:var(--text-faint); font-style:italic; }
+
+  /* ---------- annotated manuscript ---------- */
+  .annot-wrap{ margin-top:30px; }
+  .annot-body{ font-family:var(--font-mono); font-size:12.5px; line-height:1.85; white-space:pre-wrap; padding:20px 22px; background:var(--panel); border:1px solid var(--hairline); border-radius:10px; max-height:480px; overflow:auto; }
+  .annot-body mark{ padding:0 2px; border-radius:2px; border-bottom:2px solid; }
+  .m-red{ background:rgba(242,109,109,0.18); border-color:var(--red); }
+  .m-amber{ background:rgba(242,184,75,0.18); border-color:var(--amber); }
+  .m-violet{ background:rgba(139,124,240,0.18); border-color:var(--violet); }
+  .m-green{ background:rgba(62,217,143,0.18); border-color:var(--green); }
+  .m-cyan{ background:rgba(79,227,232,0.18); border-color:var(--cyan); }
+
+  .legend{ display:flex; gap:16px; flex-wrap:wrap; margin-top:12px; font-size:11.5px; color:var(--text-dim); }
+  .legend span{ display:inline-flex; align-items:center; gap:6px; }
+  .legend i{ width:11px; height:11px; display:inline-block; border-bottom:2px solid; border-radius:2px; }
+
+  footer{ margin-top:56px; padding-top:16px; border-top:1px solid var(--hairline); font-family:var(--font-mono); font-size:10.5px; color:var(--text-faint); display:flex; justify-content:space-between; flex-wrap:wrap; gap:8px; position:relative; z-index:1; }
+
+  @media (prefers-reduced-motion: reduce){ html{ scroll-behavior:auto; } .btn-primary{ transition:none; } }
+</style>
 </head>
 <body>
+<div class="watermark" aria-hidden="true"><span>CONSISTENCY</span></div>
 <div class="wrap">
 
   <header class="masthead">
-    <div class="kicker">Manuscript self-check tool &middot; v2</div>
-    <h1 class="title">Terminology &amp; Variable <em>Consistency Checker</em></h1>
-    <p class="subtitle">Paste a manuscript or code excerpt. The engine flags terms, spellings, and variable names used inconsistently, with the exact location of each occurrence — built for authors preparing submissions to Scopus-indexed journals.</p>
-    <div class="masthead-meta">Runs entirely in your browser<br>No text leaves your device unless you run AI search</div>
+    <div>
+      <div class="eyebrow">Manuscript self-check tool &middot; v2</div>
+      <h1>Terminology &amp; Variable <em>Consistency Checker</em></h1>
+      <p class="subtitle">Paste a manuscript or code excerpt. The engine flags terms, spellings, and variable names used inconsistently, with the exact location of each occurrence — built for authors preparing submissions to Scopus-indexed journals.</p>
+    </div>
+    <button class="ghost theme-toggle" id="btn-theme">Light mode</button>
   </header>
 
   <div class="grid">
-    <div class="panel manuscript">
-      <div class="panel-head">
+    <div class="panel">
+      <span class="corner tl"></span><span class="corner tr"></span><span class="corner bl"></span><span class="corner br"></span>
+      <div class="panel-title">
         <h2>Manuscript</h2>
         <span class="tag" id="wordcount">0 words</span>
       </div>
-      <div class="panel-body">
-        <textarea id="input-text" placeholder="Paste your manuscript, documentation, or code excerpt here...&#10;&#10;e.g. a mix of &quot;dataset&quot; and &quot;corpus&quot;, or userId / user_id / UserID, or organize / organise."></textarea>
-        <div class="file-row">
-          <label class="upload">
-            Upload .txt / .md
-            <input type="file" id="file-input" accept=".txt,.md,.markdown">
-          </label>
-          <button class="btn ghost small" id="btn-sample">Load sample</button>
-          <button class="btn ghost small" id="btn-clear">Clear</button>
-        </div>
+      <textarea id="input-text" placeholder="Paste your manuscript, documentation, or code excerpt here...&#10;&#10;e.g. a mix of &quot;dataset&quot; and &quot;corpus&quot;, or userId / user_id / UserID, or organize / organise."></textarea>
+      <div class="file-row">
+        <label class="upload">
+          Upload .txt / .md
+          <input type="file" id="file-input" accept=".txt,.md,.markdown">
+        </label>
+        <button class="ghost" id="btn-sample">Load sample</button>
+        <button class="ghost" id="btn-clear">Clear</button>
       </div>
     </div>
 
     <div class="panel">
-      <div class="panel-head">
+      <span class="corner tl"></span><span class="corner tr"></span><span class="corner bl"></span><span class="corner br"></span>
+      <div class="panel-title">
         <h2>Check Settings</h2>
         <span class="tag">optional</span>
       </div>
-      <div class="panel-body">
 
+      <div class="field">
+        <label class="field-label">Fuzzy-match sensitivity <span id="sens-val">balanced</span></label>
+        <input type="range" id="sensitivity" min="0" max="2" value="1" step="1">
+        <div class="hint">Controls how similar two words must be (edit distance) to be flagged as a possible spelling-variant pair.</div>
+      </div>
+
+      <div class="field">
+        <div class="check-row"><input type="checkbox" id="chk-case" checked><label for="chk-case">Casing variants (Website / website)</label></div>
+        <div class="check-row"><input type="checkbox" id="chk-hyphenation" checked><label for="chk-hyphenation">Hyphenation / spacing (e-mail / email)</label></div>
+        <div class="check-row"><input type="checkbox" id="chk-identifier" checked><label for="chk-identifier">Variable naming style (userId / user_id / UserID)</label></div>
+        <div class="check-row"><input type="checkbox" id="chk-spelling" checked><label for="chk-spelling">American / British spelling mixed (organize / organise)</label></div>
+        <div class="check-row"><input type="checkbox" id="chk-acronym" checked><label for="chk-acronym">Acronym defined two different ways</label></div>
+        <div class="check-row"><input type="checkbox" id="chk-acronym-undefined"><label for="chk-acronym-undefined">Flag acronyms used repeatedly but never defined <em>(optional — noisier)</em></label></div>
+        <div class="check-row"><input type="checkbox" id="chk-fuzzy" checked><label for="chk-fuzzy">Possible spelling variants (fuzzy match)</label></div>
+      </div>
+
+      <div class="field">
+        <div class="check-row"><input type="checkbox" id="chk-builtin-gloss" checked><label for="chk-builtin-gloss">Use built-in glossary (~30 common academic/technical term pairs)</label></div>
+        <label class="field-label" style="margin-top:10px;">Additional glossary (optional)</label>
+        <textarea class="glossary" id="glossary" placeholder="preferred_term, alternative1, alternative2&#10;article, post, write-up"></textarea>
+        <div class="hint">One group per line, first term = preferred. String-based matching only works for terms listed here or in the built-in glossary — see the AI panel below for candidates <em>beyond</em> a fixed list.</div>
+      </div>
+
+      <div class="run-row">
+        <button class="btn-primary" id="btn-run">Check manuscript</button>
+        <span class="status-line" id="status-line"></span>
+      </div>
+
+      <div class="ai-block">
+        <h3>AI-assisted semantic search (optional)</h3>
+        <p>Everything above matches text patterns. This loads a small multilingual embedding model <em>in your browser</em> (via a Web Worker) and compares the <strong>meaning</strong> of recurring terms — surfacing candidates like "dataset" / "corpus" that look nothing alike as strings. Needs internet the first time only. Results are unverified candidates — always check the context yourself.</p>
         <div class="field">
-          <label class="field-label">Fuzzy-match sensitivity <span id="sens-val">balanced</span></label>
-          <input type="range" id="sensitivity" min="0" max="2" value="1" step="1">
-          <div class="hint">Controls how similar two words must be (edit distance) to be flagged as a possible spelling-variant pair.</div>
+          <label class="field-label">Similarity threshold <span id="ai-threshold-val">0.86</span></label>
+          <input type="range" id="ai-threshold" min="0.75" max="0.95" value="0.86" step="0.01">
         </div>
-
-        <div class="field">
-          <div class="check-row"><input type="checkbox" id="chk-case" checked><label for="chk-case">Casing variants (Website / website)</label></div>
-          <div class="check-row"><input type="checkbox" id="chk-hyphenation" checked><label for="chk-hyphenation">Hyphenation / spacing (e-mail / email)</label></div>
-          <div class="check-row"><input type="checkbox" id="chk-identifier" checked><label for="chk-identifier">Variable naming style (userId / user_id / UserID)</label></div>
-          <div class="check-row"><input type="checkbox" id="chk-spelling" checked><label for="chk-spelling">American / British spelling mixed (organize / organise)</label></div>
-          <div class="check-row"><input type="checkbox" id="chk-acronym" checked><label for="chk-acronym">Acronym defined two different ways</label></div>
-          <div class="check-row"><input type="checkbox" id="chk-acronym-undefined"><label for="chk-acronym-undefined">Flag acronyms used repeatedly but never defined <em style="font-style:italic;">(optional — noisier)</em></label></div>
-          <div class="check-row"><input type="checkbox" id="chk-fuzzy" checked><label for="chk-fuzzy">Possible spelling variants (fuzzy match)</label></div>
-        </div>
-
-        <div class="field">
-          <div class="check-row"><input type="checkbox" id="chk-builtin-gloss" checked><label for="chk-builtin-gloss">Use built-in glossary (~30 common academic/technical term pairs)</label></div>
-          <label class="field-label" style="margin-top:10px;">Additional glossary (optional)</label>
-          <textarea class="glossary" id="glossary" placeholder="preferred_term, alternative1, alternative2&#10;article, post, write-up"></textarea>
-          <div class="hint">One group per line, first term = preferred. String-based matching only works for terms actually listed here or in the built-in glossary — see the AI panel below for a way to find candidates <em>beyond</em> a fixed list.</div>
-        </div>
-
         <div class="run-row">
-          <button class="btn" id="btn-run">Check manuscript</button>
-          <span class="status-line" id="status-line"></span>
-        </div>
-
-        <div class="ai-panel">
-          <h3>AI-assisted semantic search (optional)</h3>
-          <p>Everything above matches text patterns. This instead loads a small multilingual embedding model <em>in your browser</em> (via a Web Worker) and compares the <strong>meaning</strong> of recurring terms — so it can surface candidates like "dataset" / "corpus" that look nothing alike as strings. Requires internet the first time (downloads the model, then it's cached). Results are unverified candidates, not confirmed findings — always check the context yourself.</p>
-          <div class="field">
-            <label class="field-label">Similarity threshold <span id="ai-threshold-val">0.86</span></label>
-            <input type="range" id="ai-threshold" min="0.75" max="0.95" value="0.86" step="0.01">
-          </div>
-          <div class="run-row">
-            <button class="btn ai" id="btn-ai" disabled>Run AI semantic search</button>
-            <span class="ai-status" id="ai-status"></span>
-          </div>
+          <button class="btn-primary btn-ai" id="btn-ai" disabled>Run AI semantic search</button>
+          <span class="ai-status" id="ai-status"></span>
         </div>
       </div>
     </div>
@@ -99,21 +212,46 @@
     <div id="results-body"></div>
 
     <div class="annot-wrap">
-      <div class="panel-head" style="border-bottom:1px dashed var(--paper-line); padding-left:0; padding-right:0;">
-        <h2 style="font-size:15px;">Annotated manuscript</h2>
-        <button class="btn ghost small" id="btn-export">Download report (.md)</button>
+      <div class="panel-title">
+        <h2 style="font-size:14px;">Annotated manuscript</h2>
       </div>
       <div class="annot-body" id="annot-body"></div>
       <div class="legend">
-        <span><i class="m-case"></i>Casing</span>
-        <span><i class="m-hyphenation"></i>Hyphenation</span>
-        <span><i class="m-identifier"></i>Variable naming</span>
-        <span><i class="m-spelling"></i>AmE / BrE spelling</span>
-        <span><i class="m-glossary"></i>Glossary</span>
-        <span><i class="m-acronym"></i>Acronym</span>
-        <span><i class="m-fuzzy"></i>Spelling variant</span>
-        <span><i class="m-semantic"></i>AI-suggested</span>
+        <span><i class="m-red"></i>Casing / spelling variant</span>
+        <span><i class="m-amber"></i>Hyphenation / AmE-BrE</span>
+        <span><i class="m-violet"></i>Variable naming / acronym</span>
+        <span><i class="m-green"></i>Glossary</span>
+        <span><i class="m-cyan"></i>AI-suggested</span>
       </div>
+    </div>
+
+    <div class="export-panel">
+      <span class="corner tl"></span><span class="corner tr"></span><span class="corner bl"></span><span class="corner br"></span>
+      <div class="panel-title">
+        <h2 style="font-size:14px;">Export report</h2>
+      </div>
+      <div class="export-options" id="export-options">
+        <label class="export-check"><input type="checkbox" value="case" checked> Casing</label>
+        <label class="export-check"><input type="checkbox" value="hyphenation" checked> Hyphenation</label>
+        <label class="export-check"><input type="checkbox" value="identifier" checked> Variable naming</label>
+        <label class="export-check"><input type="checkbox" value="spelling" checked> AmE / BrE spelling</label>
+        <label class="export-check"><input type="checkbox" value="glossary" checked> Glossary</label>
+        <label class="export-check"><input type="checkbox" value="acronym" checked> Acronym</label>
+        <label class="export-check"><input type="checkbox" value="fuzzy" checked> Spelling variant</label>
+        <label class="export-check"><input type="checkbox" value="semantic" checked> AI-suggested</label>
+      </div>
+      <div class="run-row">
+        <button class="ghost" id="btn-export-md">Download Markdown (.md)</button>
+        <button class="ghost" id="btn-export-pdf">Preview printable report (PDF)</button>
+      </div>
+    </div>
+
+    <div class="preview-shell" id="preview-shell" style="display:none;">
+      <div class="preview-toolbar">
+        <span>Report preview</span>
+        <button class="ghost" id="btn-print">Print / Save as PDF</button>
+      </div>
+      <div class="report-page" id="report-page"></div>
     </div>
   </section>
 
@@ -127,6 +265,17 @@
   document.getElementById('ai-threshold').addEventListener('input', (e) => {
     document.getElementById('ai-threshold-val').textContent = parseFloat(e.target.value).toFixed(2);
   });
+  (function(){
+    const root = document.documentElement;
+    const btn = document.getElementById('btn-theme');
+    const saved = localStorage.getItem('theme');
+    if (saved === 'light') { root.setAttribute('data-theme', 'light'); btn.textContent = 'Dark mode'; }
+    btn.addEventListener('click', () => {
+      const isLight = root.getAttribute('data-theme') === 'light';
+      if (isLight) { root.removeAttribute('data-theme'); localStorage.setItem('theme', 'dark'); btn.textContent = 'Light mode'; }
+      else { root.setAttribute('data-theme', 'light'); localStorage.setItem('theme', 'light'); btn.textContent = 'Dark mode'; }
+    });
+  })();
 </script>
 <script type="module" src="assets/js/app.js"></script>
 </body>

@@ -1,6 +1,6 @@
 // assets/js/app.js
 import { analyze, tokenize, escapeHtml, escapeRegExp, contextSnippet, BUILTIN_GLOSSARY } from './core/engine.js';
-import { buildMarkdownReport, downloadMarkdown } from './core/report.js';
+import { buildMarkdownReport, buildPrintableReportHTML, downloadMarkdown } from './core/report.js';
 import { extractCandidateTerms, SemanticAnalyzer } from './ai/semantic.js';
 
 const $ = (sel) => document.querySelector(sel);
@@ -58,14 +58,14 @@ $('#btn-sample').addEventListener('click', () => {
 });
 
 const CAT_META = {
-  case:        { label: 'Casing variants', sym: 'Aa', cls: 'style-case', mcls: 'm-case', color: 'var(--red)' },
-  hyphenation: { label: 'Hyphenation / spacing variants', sym: '\u2013_', cls: 'style-hyphenation', mcls: 'm-hyphenation', color: 'var(--gold)' },
-  identifier:  { label: 'Variable naming consistency', sym: '{ }', cls: 'style-identifier', mcls: 'm-identifier', color: 'var(--plum)' },
-  spelling:    { label: 'American / British spelling mixed', sym: 'AmE/BrE', cls: 'style-spelling', mcls: 'm-spelling', color: 'var(--gold)' },
-  glossary:    { label: 'Glossary \u2014 preferred terminology', sym: '\u2248', cls: 'style-glossary', mcls: 'm-glossary', color: 'var(--teal)' },
-  acronym:     { label: 'Acronym consistency', sym: 'ABC', cls: 'style-acronym', mcls: 'm-acronym', color: 'var(--plum)' },
-  fuzzy:       { label: 'Possible spelling variant (typo candidate)', sym: '~', cls: 'style-fuzzy', mcls: 'm-fuzzy', color: 'var(--red)' },
-  semantic:    { label: 'AI-suggested synonyms (unverified)', sym: 'AI', cls: 'style-semantic', mcls: 'm-semantic', color: 'var(--indigo)' }
+  case:        { label: 'Casing variants', sym: 'Aa', cls: 'c-red', mcls: 'm-red', color: 'var(--red)' },
+  hyphenation: { label: 'Hyphenation / spacing variants', sym: '\u2013_', cls: 'c-amber', mcls: 'm-amber', color: 'var(--amber)' },
+  identifier:  { label: 'Variable naming consistency', sym: '{ }', cls: 'c-violet', mcls: 'm-violet', color: 'var(--violet)' },
+  spelling:    { label: 'American / British spelling mixed', sym: 'AmE/BrE', cls: 'c-amber', mcls: 'm-amber', color: 'var(--amber)' },
+  glossary:    { label: 'Glossary \u2014 preferred terminology', sym: '\u2248', cls: 'c-green', mcls: 'm-green', color: 'var(--green)' },
+  acronym:     { label: 'Acronym consistency', sym: 'ABC', cls: 'c-violet', mcls: 'm-violet', color: 'var(--violet)' },
+  fuzzy:       { label: 'Possible spelling variant (typo candidate)', sym: '~', cls: 'c-red', mcls: 'm-red', color: 'var(--red)' },
+  semantic:    { label: 'AI-suggested synonyms (unverified)', sym: 'AI', cls: 'c-cyan', mcls: 'm-cyan', color: 'var(--cyan)' }
 };
 const CAT_ORDER = ['case', 'hyphenation', 'identifier', 'spelling', 'glossary', 'acronym', 'fuzzy', 'semantic'];
 
@@ -102,6 +102,7 @@ function renderResults(text, findings, semanticItems) {
 
     const block = document.createElement('div');
     block.className = 'cat-block';
+    block.dataset.category = cat;
 
     const titleEl = document.createElement('div');
     titleEl.className = 'cat-title';
@@ -212,7 +213,7 @@ function renderAnnotated(text, highlightMap) {
   let m;
   while ((m = re.exec(limited)) !== null) {
     html += escapeHtml(limited.slice(last, m.index));
-    const cls = highlightMap.get(m[0].toLowerCase()) || 'm-case';
+    const cls = highlightMap.get(m[0].toLowerCase()) || 'm-red';
     html += '<mark class="' + cls + '">' + escapeHtml(m[0]) + '</mark>';
     last = m.index + m[0].length;
   }
@@ -322,16 +323,40 @@ function findOccurrences(text, tokens, term) {
   return tokens.filter(t => t.text.toLowerCase() === term.toLowerCase());
 }
 
-$('#btn-export').addEventListener('click', () => {
+function getSelectedExportCategories() {
+  return [...document.querySelectorAll('#export-options input:checked')].map(c => c.value);
+}
+
+function buildCategoryBlocks(selectedCats) {
   const blocks = [];
-  document.querySelectorAll('.cat-block').forEach(block => {
+  document.querySelectorAll('.cat-block').forEach((block) => {
+    const catKey = block.dataset.category;
+    if (selectedCats.length && !selectedCats.includes(catKey)) return;
     const title = block.querySelector('.cat-title').textContent.trim();
     const items = [...block.querySelectorAll('.note-card')].map(card => {
       const chips = [...card.querySelectorAll('.variant-chip')].map(c => c.textContent.trim());
       const contexts = [...card.querySelectorAll('.ctx-line')].map(c => c.textContent.trim());
       return { variantSummary: chips.join(' \u21C4 '), contexts, occurrenceCount: contexts.length || 1 };
     });
-    blocks.push({ title, items });
+    blocks.push({ key: catKey, title, items });
   });
+  return blocks;
+}
+
+$('#btn-export-md').addEventListener('click', () => {
+  const blocks = buildCategoryBlocks(getSelectedExportCategories());
   downloadMarkdown('consistency-report.md', buildMarkdownReport(blocks));
+});
+
+$('#btn-export-pdf').addEventListener('click', () => {
+  const blocks = buildCategoryBlocks(getSelectedExportCategories());
+  const wordCount = (lastText.match(/[\p{L}\p{N}_-]+/gu) || []).length;
+  const html = buildPrintableReportHTML(blocks, { wordCount });
+  $('#report-page').innerHTML = html;
+  $('#preview-shell').style.display = 'block';
+  $('#preview-shell').scrollIntoView({ behavior: 'smooth', block: 'start' });
+});
+
+$('#btn-print').addEventListener('click', () => {
+  window.print();
 });
