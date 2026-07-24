@@ -10,6 +10,7 @@ import { spellingKey, stripEnglishAffixes } from './spelling.js';
 import { isBoundaryStart, computeExcludedRanges, inRanges, findReferencesSectionStart } from './boundaries.js';
 import { BUILTIN_GLOSSARY, matchGlossary } from './glossary.js';
 import { detectAcronymIssues } from './acronym.js';
+import { detectPhraseIssues } from './phrases.js';
 
 const STOPWORDS = new Set(['through', 'throughout', 'although', 'because', 'without', 'within',
   'between', 'before', 'unless', 'during', 'should', 'would', 'could', 'their', 'there', 'these',
@@ -20,10 +21,12 @@ const STOPWORDS = new Set(['through', 'throughout', 'although', 'because', 'with
 
 export function analyze(text, opts = {}) {
   const tokens = tokenize(text);
-  const findings = { case: [], hyphenation: [], identifier: [], spelling: [], glossary: [], acronym: [], fuzzy: [] };
+  const findings = { case: [], hyphenation: [], identifier: [], spelling: [], glossary: [], acronym: [], phrase: [], reorder: [], fuzzy: [] };
 
   const refStart = findReferencesSectionStart(text);
   const isInBody = (pos) => refStart < 0 || pos < refStart;
+  const excludedRanges = computeExcludedRanges(text);
+  const isUsable = (pos) => isInBody(pos) && !inRanges(excludedRanges, pos);
 
   const byLower = new Map();
   for (const t of tokens) {
@@ -35,11 +38,10 @@ export function analyze(text, opts = {}) {
   // 1) CASE variants — only flagged when the discrepancy shows up mid-sentence,
   // inside the author's own prose (not a heading, table, or reference entry).
   if (opts.checkCase !== false) {
-    const excludedRanges = computeExcludedRanges(text);
     for (const [key, occ] of byLower) {
       if (key.length < 3 || !/[a-z]/i.test(key)) continue;
       if (/[0-9_-]/.test(key)) continue;
-      const nonHeadingOcc = occ.filter(o => !inRanges(excludedRanges, o.start) && isInBody(o.start));
+      const nonHeadingOcc = occ.filter(o => isUsable(o.start));
       if (nonHeadingOcc.length < 2) continue;
       const interior = nonHeadingOcc.filter(o => !isBoundaryStart(text, o.start));
       const interiorForms = new Set(interior.map(o => o.text));
@@ -134,12 +136,20 @@ export function analyze(text, opts = {}) {
     findings.acronym = detectAcronymIssues(text, tokens, { checkUndefined: !!opts.checkUndefinedAcronyms });
   }
 
-  // 7) FUZZY near-duplicate spelling (typo candidates)
+  // 7) PHRASE (two-word term) consistency — casing/hyphenation of the whole
+  // term, and word-order swaps ("audit committee" vs "committee audit").
+  // Neither requires a glossary: both are detected purely from adjacency.
+  if (opts.checkPhrase !== false) {
+    const phraseResults = detectPhraseIssues(text, tokens, isUsable);
+    findings.phrase = phraseResults.casing;
+    findings.reorder = phraseResults.reordering;
+  }
+
+  // 8) FUZZY near-duplicate spelling (typo candidates)
   if (opts.checkFuzzy !== false) {
     const bodyByLower = new Map();
-    const fuzzyExcluded = computeExcludedRanges(text);
     for (const [k, occ] of byLower) {
-      const filtered = occ.filter(o => isInBody(o.start) && !inRanges(fuzzyExcluded, o.start));
+      const filtered = occ.filter(o => isUsable(o.start));
       if (filtered.length) bodyByLower.set(k, filtered);
     }
     const uniqueWords = [...bodyByLower.keys()].filter(w => w.length >= 6 && /^[a-z]+$/.test(w) && !STOPWORDS.has(w));
@@ -187,3 +197,5 @@ export function analyze(text, opts = {}) {
 export { tokenize, levenshtein, identifierStyle, identifierRoot, spellingKey, stripEnglishAffixes,
   commonPrefixLen, commonSuffixLen, escapeRegExp, BUILTIN_GLOSSARY };
 export { escapeHtml, contextSnippet } from './tokenizer.js';
+export { extractFrequentBigrams } from './phrases.js';
+export { computeExcludedRanges, inRanges, findReferencesSectionStart } from './boundaries.js';

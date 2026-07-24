@@ -64,10 +64,12 @@ const CAT_META = {
   spelling:    { label: 'American / British spelling mixed', sym: 'AmE/BrE', cls: 'c-amber', mcls: 'm-amber', color: 'var(--amber)' },
   glossary:    { label: 'Glossary \u2014 preferred terminology', sym: '\u2248', cls: 'c-green', mcls: 'm-green', color: 'var(--green)' },
   acronym:     { label: 'Acronym consistency', sym: 'ABC', cls: 'c-violet', mcls: 'm-violet', color: 'var(--violet)' },
+  phrase:      { label: 'Two-word term casing consistency', sym: '\u201c \u201d', cls: 'c-red', mcls: 'm-red', color: 'var(--red)' },
+  reorder:     { label: 'Two-word term order consistency', sym: '\u21C6', cls: 'c-amber', mcls: 'm-amber', color: 'var(--amber)' },
   fuzzy:       { label: 'Possible spelling variant (typo candidate)', sym: '~', cls: 'c-red', mcls: 'm-red', color: 'var(--red)' },
   semantic:    { label: 'AI-suggested synonyms (unverified)', sym: 'AI', cls: 'c-cyan', mcls: 'm-cyan', color: 'var(--cyan)' }
 };
-const CAT_ORDER = ['case', 'hyphenation', 'identifier', 'spelling', 'glossary', 'acronym', 'fuzzy', 'semantic'];
+const CAT_ORDER = ['case', 'hyphenation', 'identifier', 'spelling', 'glossary', 'acronym', 'phrase', 'reorder', 'fuzzy', 'semantic'];
 
 let lastFindings = null;
 let lastText = '';
@@ -238,6 +240,7 @@ $('#btn-run').addEventListener('click', () => {
       checkSpelling: $('#chk-spelling').checked,
       checkAcronym: $('#chk-acronym').checked,
       checkUndefinedAcronyms: $('#chk-acronym-undefined').checked,
+      checkPhrase: $('#chk-phrase').checked,
       checkFuzzy: $('#chk-fuzzy').checked,
       sensitivity: parseInt(sensEl.value, 10),
       glossaryLines

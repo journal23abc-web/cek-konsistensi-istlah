@@ -34,8 +34,8 @@ export function downloadMarkdown(filename, content) {
 // Severity bucket for the printable report's three-color system
 // (.rp-issue.error / .warning / .suggestion — red / amber / cyan).
 const SEVERITY = {
-  case: 'error', fuzzy: 'error', identifier: 'error',
-  hyphenation: 'warning', spelling: 'warning', acronym: 'warning',
+  case: 'error', fuzzy: 'error', identifier: 'error', phrase: 'error',
+  hyphenation: 'warning', spelling: 'warning', acronym: 'warning', reorder: 'warning',
   glossary: 'suggestion', semantic: 'suggestion'
 };
 

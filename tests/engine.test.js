@@ -155,6 +155,32 @@ test('fuzzy does not duplicate a pair already covered by the spelling category',
   assert.strictEqual(f.fuzzy.find(x => x.key === ['organise', 'organize'].sort().join('~')), undefined);
 });
 
+console.log('\nanalyze() — two-word phrase consistency');
+test('flags a two-word term written with mixed casing', () => {
+  const text = 'The Audit Committee reviewed the filing. Later, the audit committee met again, and the audit committee issued a statement, while the Audit Committee chair signed off.';
+  const f = analyze(text, {});
+  const hit = f.phrase.find(x => x.key === 'audit committee');
+  assert.ok(hit, 'expected a phrase-casing finding for "audit committee"');
+});
+test('flags a two-word term written in swapped order', () => {
+  const text = 'The audit committee approved the report. In another section, the committee audit was described differently, and later the audit committee reviewed it again while the committee audit process continued.';
+  const f = analyze(text, {});
+  const hit = f.reorder.find(x => x.key === 'audit committee');
+  assert.ok(hit, 'expected a word-order finding for "audit committee" / "committee audit"');
+});
+test('does NOT flag a two-word phrase used consistently', () => {
+  const text = 'The sample size was fixed. The sample size did not change. Every subgroup used the same sample size throughout the sample size calculation.';
+  const f = analyze(text, {});
+  assert.strictEqual(f.phrase.find(x => x.key === 'sample size'), undefined);
+  assert.strictEqual(f.reorder.find(x => x.key === 'sample size'), undefined);
+});
+test('does NOT form a phrase across a sentence boundary', () => {
+  const text = 'The result was significant. The next section begins differently, and the next section begins again, and the next section begins once more here.';
+  const f = analyze(text, {});
+  // "significant. The" must never be treated as a two-word phrase
+  assert.strictEqual(f.phrase.find(x => x.key.includes('significant')), undefined);
+});
+
 console.log('\n' + '-'.repeat(50));
 console.log(passed + ' passed, ' + failed + ' failed');
 if (failed > 0) process.exit(1);

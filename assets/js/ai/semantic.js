@@ -10,6 +10,7 @@
 // footing as the rest of the tool.
 
 import { computeExcludedRanges, inRanges, findReferencesSectionStart } from '../core/boundaries.js';
+import { extractFrequentBigrams } from '../core/phrases.js';
 
 const ID_EN_STOPWORDS = new Set([
   'the', 'and', 'for', 'are', 'but', 'not', 'this', 'that', 'these', 'those', 'with', 'from',
@@ -24,7 +25,7 @@ const ID_EN_STOPWORDS = new Set([
 export function extractCandidateTerms(text, tokens, excludeForms, opts = {}) {
   const maxWords = opts.maxWords || 40;
   const maxPhrases = opts.maxPhrases || 20;
-  const maxTotal = opts.maxTotal || 60;
+  const maxTotal = opts.maxTotal || 70;
 
   // Skip the same non-prose regions the deterministic checks skip (headings,
   // table rows, the reference list) — otherwise citation URLs, anchor IDs,
@@ -64,7 +65,18 @@ export function extractCandidateTerms(text, tokens, excludeForms, opts = {}) {
     .sort((a, b) => b.count - a.count)
     .slice(0, maxPhrases);
 
-  return [...topWords, ...topPhrases].slice(0, maxTotal);
+  // Most technical two-word terms are NOT Title Case ("audit quality", not
+  // "Audit Quality") — pull those in too via the same bigram builder the
+  // deterministic phrase check uses, so the embedding model gets a fair shot
+  // at phrase-level synonym drift ("audit quality" vs "quality of audits"),
+  // not just exact-repeated capitalized runs.
+  const bigrams = extractFrequentBigrams(text, tokens, isUsable, { minCount: 2, maxBigrams: opts.maxBigrams || 25 })
+    .filter((b) => !excludeForms || !excludeForms.has(b.term));
+
+  const seen = new Set(topPhrases.map((p) => p.term.toLowerCase()));
+  const dedupedBigrams = bigrams.filter((b) => !seen.has(b.term));
+
+  return [...topWords, ...topPhrases, ...dedupedBigrams].slice(0, maxTotal);
 }
 
 export class SemanticAnalyzer {
