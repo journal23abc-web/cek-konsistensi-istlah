@@ -1,117 +1,133 @@
-<!doctype html>
-<html lang="id">
+<!DOCTYPE html>
+<html lang="en">
 <head>
-  <meta charset="utf-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1">
-  <meta name="description" content="Validator istilah dan penamaan yang berjalan lokal di browser, kompatibel dengan GitHub Pages.">
-  <title>Validator Konsistensi Istilah</title>
-  <link rel="preconnect" href="https://fonts.googleapis.com">
-  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600&family=IBM+Plex+Sans:wght@400;500;600&family=Space+Grotesk:wght@500;600;700&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="./assets/css/styles.css">
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Terminology &amp; Variable Consistency Checker</title>
+<meta name="description" content="Checks a manuscript for inconsistent terminology, casing, hyphenation, variable naming, acronym definitions, American/British spelling, and (optionally) AI-assisted synonym candidates — runs entirely in the browser.">
+<link rel="stylesheet" href="assets/css/styles.css">
 </head>
 <body>
-  <div class="wrap">
-    <header class="top">
-      <p class="eyebrow">Sistem Integrasi Kelola Jurnal</p>
-      <h1>Validator Konsistensi Istilah</h1>
-      <div class="status-pill">
-        <span class="status-pill-left">Pemeriksaan lokal, modular, dan siap GitHub Pages</span>
-        <span class="status-pill-right"><span class="status-dot"></span><span id="engineStatus">Engine siap</span></span>
+<div class="wrap">
+
+  <header class="masthead">
+    <div class="kicker">Manuscript self-check tool &middot; v2</div>
+    <h1 class="title">Terminology &amp; Variable <em>Consistency Checker</em></h1>
+    <p class="subtitle">Paste a manuscript or code excerpt. The engine flags terms, spellings, and variable names used inconsistently, with the exact location of each occurrence — built for authors preparing submissions to Scopus-indexed journals.</p>
+    <div class="masthead-meta">Runs entirely in your browser<br>No text leaves your device unless you run AI search</div>
+  </header>
+
+  <div class="grid">
+    <div class="panel manuscript">
+      <div class="panel-head">
+        <h2>Manuscript</h2>
+        <span class="tag" id="wordcount">0 words</span>
       </div>
-      <p class="top-note">Aturan deterministik dipakai untuk koreksi pasti. AI lokal hanya dipakai untuk menemukan kandidat sinonim, lalu tetap meminta verifikasi manusia.</p>
-    </header>
-
-    <main class="grid">
-      <aside class="panel glossary-panel" aria-label="Aturan istilah">
-        <h2>Aturan Istilah <span class="count" id="ruleCount">0 aturan</span></h2>
-        <div class="panel-body">
-          <p class="subtle first">Tetapkan satu istilah baku dan varian yang harus dihindari. Pisahkan varian dengan koma.</p>
-          <div id="termRows"></div>
-          <button class="add-term" id="addTermBtn" type="button">+ Tambah aturan istilah</button>
-
-          <div class="opt-stack">
-            <label class="opt-row"><input type="checkbox" id="caseSensitive"> Peka huruf besar/kecil</label>
-            <label class="opt-row"><input type="checkbox" id="preserveCase" checked> Pertahankan kapitalisasi kalimat saat mengganti</label>
-          </div>
-
-          <div class="glossary-actions">
-            <button class="btn ghost small" id="exportGlossaryBtn" type="button">Ekspor JSON</button>
-            <button class="btn ghost small" id="importGlossaryBtn" type="button">Impor JSON</button>
-            <input type="file" id="glossaryFileInput" accept="application/json,.json" hidden>
-          </div>
-          <p class="subtle" id="storageStatus">Glosarium tersimpan otomatis di browser.</p>
+      <div class="panel-body">
+        <textarea id="input-text" placeholder="Paste your manuscript, documentation, or code excerpt here...&#10;&#10;e.g. a mix of &quot;dataset&quot; and &quot;corpus&quot;, or userId / user_id / UserID, or organize / organise."></textarea>
+        <div class="file-row">
+          <label class="upload">
+            Upload .txt / .md
+            <input type="file" id="file-input" accept=".txt,.md,.markdown">
+          </label>
+          <button class="btn ghost small" id="btn-sample">Load sample</button>
+          <button class="btn ghost small" id="btn-clear">Clear</button>
         </div>
-      </aside>
+      </div>
+    </div>
 
-      <section>
-        <nav class="tabs" aria-label="Modul pemeriksaan">
-          <button class="tab-btn active" data-tab="glossary" type="button">Cek Istilah</button>
-          <button class="tab-btn" data-tab="ident" type="button">Cek Penamaan Kode</button>
-          <button class="tab-btn" data-tab="extract" type="button">Ekstrak Istilah</button>
-        </nav>
+    <div class="panel">
+      <div class="panel-head">
+        <h2>Check Settings</h2>
+        <span class="tag">optional</span>
+      </div>
+      <div class="panel-body">
 
-        <div class="panel main-panel">
-          <div class="panel-body">
-            <section id="tab-glossary" class="tab-panel">
-              <p class="subtle first">Tempel naskah atau dokumentasi. Pencocokan mendukung Unicode, istilah majemuk, spasi berulang, dan pelaporan lokasi baris.</p>
-              <textarea id="glossaryInput" spellcheck="false" placeholder="Contoh: Sistem menampilkan data user kepada customer. Setiap klien dapat melihat riwayatnya."></textarea>
-              <div class="actions">
-                <button class="btn" id="checkGlossaryBtn" type="button">Periksa konsistensi</button>
-                <button class="btn ghost" id="fixGlossaryBtn" type="button">Ganti semua varian</button>
-              </div>
-            </section>
-
-            <section id="tab-ident" class="tab-panel" hidden>
-              <p class="subtle first">Komentar dan string diabaikan. Identifier dipecah berdasarkan camelCase, PascalCase, snake_case, angka, dan akronim.</p>
-              <textarea id="identInput" spellcheck="false" placeholder="const userId = getUserId();&#10;let user_id = 5;&#10;function fetchUserID() {}"></textarea>
-              <div class="actions">
-                <button class="btn" id="checkIdentBtn" type="button">Deteksi inkonsistensi penamaan</button>
-              </div>
-            </section>
-
-            <section id="tab-extract" class="tab-panel" hidden>
-              <p class="subtle first">Unggah DOCX, TXT, Markdown, CSV, JSON, atau HTML. Kandidat istilah diranking dari frekuensi dan kekuatan frasa, bukan frekuensi mentah saja.</p>
-              <div class="upload-box">
-                <label for="documentInput" class="field-label">Unggah dokumen</label>
-                <input type="file" id="documentInput" accept=".docx,.txt,.md,.markdown,.csv,.json,.html,.htm,text/plain,text/markdown,text/csv,application/json,text/html">
-                <span id="documentStatus" class="subtle"></span>
-              </div>
-
-              <label for="extractInput" class="field-label">Teks sumber</label>
-              <textarea id="extractInput" spellcheck="false" placeholder="Teks hasil unggahan akan muncul di sini dan dapat diedit sebelum dianalisis."></textarea>
-              <div class="actions">
-                <button class="btn" id="extractBtn" type="button">Analisis istilah</button>
-              </div>
-
-              <div class="ai-box">
-                <div class="ai-settings">
-                  <label>Profil AI
-                    <select id="aiProfile">
-                      <option value="accurate" selected>Akurat — multilingual E5-small</option>
-                      <option value="lite">Ringan — multilingual MiniLM</option>
-                    </select>
-                  </label>
-                  <label>Ambang kemiripan <output id="thresholdValue">0.84</output>
-                    <input type="range" id="semanticThreshold" min="0.70" max="0.94" step="0.01" value="0.84">
-                  </label>
-                </div>
-                <div class="actions compact">
-                  <button class="btn ghost" id="semanticBtn" type="button" disabled>Kelompokkan sinonim dengan AI lokal</button>
-                  <button class="btn ghost" id="cancelSemanticBtn" type="button" hidden>Batalkan</button>
-                  <span class="subtle status-inline" id="semanticStatus"></span>
-                </div>
-                <p class="subtle">Model diunduh hanya saat fitur AI dipakai dan disimpan dalam cache browser. Tidak ada API key dan teks tidak dikirim ke server aplikasi.</p>
-              </div>
-            </section>
-          </div>
+        <div class="field">
+          <label class="field-label">Fuzzy-match sensitivity <span id="sens-val">balanced</span></label>
+          <input type="range" id="sensitivity" min="0" max="2" value="1" step="1">
+          <div class="hint">Controls how similar two words must be (edit distance) to be flagged as a possible spelling-variant pair.</div>
         </div>
 
-        <div id="results" aria-live="polite"></div>
-      </section>
-    </main>
+        <div class="field">
+          <div class="check-row"><input type="checkbox" id="chk-case" checked><label for="chk-case">Casing variants (Website / website)</label></div>
+          <div class="check-row"><input type="checkbox" id="chk-hyphenation" checked><label for="chk-hyphenation">Hyphenation / spacing (e-mail / email)</label></div>
+          <div class="check-row"><input type="checkbox" id="chk-identifier" checked><label for="chk-identifier">Variable naming style (userId / user_id / UserID)</label></div>
+          <div class="check-row"><input type="checkbox" id="chk-spelling" checked><label for="chk-spelling">American / British spelling mixed (organize / organise)</label></div>
+          <div class="check-row"><input type="checkbox" id="chk-acronym" checked><label for="chk-acronym">Acronym defined two different ways</label></div>
+          <div class="check-row"><input type="checkbox" id="chk-acronym-undefined"><label for="chk-acronym-undefined">Flag acronyms used repeatedly but never defined <em style="font-style:italic;">(optional — noisier)</em></label></div>
+          <div class="check-row"><input type="checkbox" id="chk-fuzzy" checked><label for="chk-fuzzy">Possible spelling variants (fuzzy match)</label></div>
+        </div>
+
+        <div class="field">
+          <div class="check-row"><input type="checkbox" id="chk-builtin-gloss" checked><label for="chk-builtin-gloss">Use built-in glossary (~30 common academic/technical term pairs)</label></div>
+          <label class="field-label" style="margin-top:10px;">Additional glossary (optional)</label>
+          <textarea class="glossary" id="glossary" placeholder="preferred_term, alternative1, alternative2&#10;article, post, write-up"></textarea>
+          <div class="hint">One group per line, first term = preferred. String-based matching only works for terms actually listed here or in the built-in glossary — see the AI panel below for a way to find candidates <em>beyond</em> a fixed list.</div>
+        </div>
+
+        <div class="run-row">
+          <button class="btn" id="btn-run">Check manuscript</button>
+          <span class="status-line" id="status-line"></span>
+        </div>
+
+        <div class="ai-panel">
+          <h3>AI-assisted semantic search (optional)</h3>
+          <p>Everything above matches text patterns. This instead loads a small multilingual embedding model <em>in your browser</em> (via a Web Worker) and compares the <strong>meaning</strong> of recurring terms — so it can surface candidates like "dataset" / "corpus" that look nothing alike as strings. Requires internet the first time (downloads the model, then it's cached). Results are unverified candidates, not confirmed findings — always check the context yourself.</p>
+          <div class="field">
+            <label class="field-label">Similarity threshold <span id="ai-threshold-val">0.86</span></label>
+            <input type="range" id="ai-threshold" min="0.75" max="0.95" value="0.86" step="0.01">
+          </div>
+          <div class="run-row">
+            <button class="btn ai" id="btn-ai" disabled>Run AI semantic search</button>
+            <span class="ai-status" id="ai-status"></span>
+          </div>
+        </div>
+      </div>
+    </div>
   </div>
 
-  <script type="module" src="./assets/js/app.js"></script>
+  <section class="results" id="results-section" style="display:none;">
+    <div class="results-head">
+      <h2>Findings</h2>
+      <div class="scorebox">
+        <div><span class="num" id="score-total">0</span><div class="lbl">Occurrences</div></div>
+        <div><span class="num" id="score-groups">0</span><div class="lbl">Groups</div></div>
+      </div>
+    </div>
+
+    <div id="results-body"></div>
+
+    <div class="annot-wrap">
+      <div class="panel-head" style="border-bottom:1px dashed var(--paper-line); padding-left:0; padding-right:0;">
+        <h2 style="font-size:15px;">Annotated manuscript</h2>
+        <button class="btn ghost small" id="btn-export">Download report (.md)</button>
+      </div>
+      <div class="annot-body" id="annot-body"></div>
+      <div class="legend">
+        <span><i class="m-case"></i>Casing</span>
+        <span><i class="m-hyphenation"></i>Hyphenation</span>
+        <span><i class="m-identifier"></i>Variable naming</span>
+        <span><i class="m-spelling"></i>AmE / BrE spelling</span>
+        <span><i class="m-glossary"></i>Glossary</span>
+        <span><i class="m-acronym"></i>Acronym</span>
+        <span><i class="m-fuzzy"></i>Spelling variant</span>
+        <span><i class="m-semantic"></i>AI-suggested</span>
+      </div>
+    </div>
+  </section>
+
+  <footer>
+    <span>Terminology Consistency Checker &mdash; static, client-side, safe for GitHub Pages</span>
+    <span>Deterministic checks are tested and offline; AI search is probabilistic and needs the internet once</span>
+  </footer>
+</div>
+
+<script>
+  document.getElementById('ai-threshold').addEventListener('input', (e) => {
+    document.getElementById('ai-threshold-val').textContent = parseFloat(e.target.value).toFixed(2);
+  });
+</script>
+<script type="module" src="assets/js/app.js"></script>
 </body>
 </html>
