@@ -1,7 +1,11 @@
 {
-  "name": "validator-konsistensi-istilah",
-  "version": "2.1.0",
-  "private": true,
+  "name": "cek-konsistensi-istilah",
+  "version": "2.0.0",
+  "description": "Terminology & variable consistency checker for academic manuscripts. Static, client-side, GitHub Pages compatible.",
   "type": "module",
-  "scripts": { "test": "node --test", "serve": "python3 -m http.server 8000" }
+  "private": true,
+  "scripts": {
+    "test": "node tests/engine.test.js && node tests/semantic.test.js",
+    "serve": "node serve.js"
+  }
 }
